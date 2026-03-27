@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetWatch</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>NetWatch</h1>
+        <p class="subtitle">Local Network Monitoring Dashboard</p>
+        <div class="status-badges">
+            <div class="last-updated-badge">
+                Last Updated: {{ summary.last_updated }}
+            </div>
+            <div class="data-mode-badge data-mode-{{ summary.data_mode }}">
+                {% if summary.data_mode == "live" %}
+                Live Data
+                {% else %}
+                Sample Data
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <h3>Total Packets</h3>
+                <p>{{ summary.total_packets }}</p>
+            </div>
+
+            <div class="card">
+                <h3>TCP Packets</h3>
+                <p>{{ summary.tcp_packets }}</p>
+            </div>
+
+            <div class="card">
+                <h3>UDP Packets</h3>
+                <p>{{ summary.udp_packets }}</p>
+            </div>
+
+            <div class="card">
+                <h3>ICMP Packets</h3>
+                <p>{{ summary.icmp_packets }}</p>
+            </div>
+        </div>
+
+        <div class="alert-box">
+            <h2>Alerts</h2>
+            {% if summary.alerts %}
+            <ul>
+                {% for alert in summary.alerts %}
+                <li>{{ alert }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>No suspicious activity detected yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="top-sources-box">
+            <h2>Top Source IPs</h2>
+            {% if summary.top_sources %}
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Packet Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for source in summary.top_sources %}
+                    <tr>
+                        <td>{{ source.ip }}</td>
+                        <td>{{ source.packets }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No source IP data available.</p>
+            {% endif %}
+        </div>
+
+        <div class="top-sources-box">
+            <h2>Top Destination Ports</h2>
+            {% if summary.top_ports %}
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Port</th>
+                        <th>Packet Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for port_item in summary.top_ports %}
+                    <tr>
+                        <td>{{ port_item.port }}</td>
+                        <td>{{ port_item.packets }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No destination port data available.</p>
+            {% endif %}
+        </div>
+
+        <div class="top-sources-box">
+            <h2>Recent Packets</h2>
+            {% if summary.recent_packets %}
+            <div class="packet-filters" id="packet-filters">
+                <button class="packet-filter-btn is-active" type="button" data-filter="ALL">All</button>
+                <button class="packet-filter-btn" type="button" data-filter="TCP">TCP</button>
+                <button class="packet-filter-btn" type="button" data-filter="UDP">UDP</button>
+                <button class="packet-filter-btn" type="button" data-filter="ICMP">ICMP</button>
+            </div>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Source IP</th>
+                        <th>Destination IP</th>
+                        <th>Protocol</th>
+                        <th>Length</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-packets-body">
+                    {% for packet in summary.recent_packets %}
+                    <tr data-protocol="{{ packet.protocol }}">
+                        <td>{{ packet.time }}</td>
+                        <td>{{ packet.source }}</td>
+                        <td>{{ packet.destination }}</td>
+                        <td>{{ packet.protocol }}</td>
+                        <td>{{ packet.length }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No recent packet data available.</p>
+            {% endif %}
+        </div>
+
+        <div class="top-sources-box">
+            <h2>Protocol Distribution</h2>
+            <div id="protocol-chart" class="protocol-chart">
+                <div class="protocol-bar-row" data-value="{{ summary.tcp_packets }}">
+                    <span class="protocol-label">TCP</span>
+                    <div class="protocol-bar-track">
+                        <div class="protocol-bar protocol-tcp"></div>
+                    </div>
+                    <span class="protocol-value">{{ summary.tcp_packets }}</span>
+                </div>
+
+                <div class="protocol-bar-row" data-value="{{ summary.udp_packets }}">
+                    <span class="protocol-label">UDP</span>
+                    <div class="protocol-bar-track">
+                        <div class="protocol-bar protocol-udp"></div>
+                    </div>
+                    <span class="protocol-value">{{ summary.udp_packets }}</span>
+                </div>
+
+                <div class="protocol-bar-row" data-value="{{ summary.icmp_packets }}">
+                    <span class="protocol-label">ICMP</span>
+                    <div class="protocol-bar-track">
+                        <div class="protocol-bar protocol-icmp"></div>
+                    </div>
+                    <span class="protocol-value">{{ summary.icmp_packets }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const chartRows = document.querySelectorAll("#protocol-chart .protocol-bar-row");
+            const values = Array.from(chartRows, (row) => Number(row.dataset.value) || 0);
+            const maxValue = Math.max(...values, 1);
+
+            chartRows.forEach((row) => {
+                const value = Number(row.dataset.value) || 0;
+                const widthPercent = (value / maxValue) * 100;
+                const bar = row.querySelector(".protocol-bar");
+                if (bar) {
+                    bar.style.width = widthPercent + "%";
+                }
+            });
+
+            const filterContainer = document.getElementById("packet-filters");
+            const packetRows = document.querySelectorAll("#recent-packets-body tr[data-protocol]");
+            if (!filterContainer || !packetRows.length) {
+                return;
+            }
+
+            const filterButtons = filterContainer.querySelectorAll(".packet-filter-btn");
+            const setActiveButton = (filterValue) => {
+                filterButtons.forEach((button) => {
+                    const isActive = button.dataset.filter === filterValue;
+                    button.classList.toggle("is-active", isActive);
+                });
+            };
+
+            const applyFilter = (filterValue) => {
+                packetRows.forEach((row) => {
+                    const protocol = (row.dataset.protocol || "").toUpperCase();
+                    const shouldShow = filterValue === "ALL" || protocol === filterValue;
+                    row.style.display = shouldShow ? "" : "none";
+                });
+                setActiveButton(filterValue);
+            };
+
+            filterContainer.addEventListener("click", (event) => {
+                const button = event.target.closest(".packet-filter-btn");
+                if (!button) {
+                    return;
+                }
+                applyFilter((button.dataset.filter || "ALL").toUpperCase());
+            });
+        })();
+    </script>
+</body>
+</html>
