@@ -89,3 +89,8 @@ static/
 görseller/
 requirements.txt
 README.md
+
+```
+## 👨‍💻 Developer
+
+**Betül Altunyuva**
