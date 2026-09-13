@@ -23,11 +23,32 @@ NetWatch captures local network traffic, analyzes packet metadata, detects suspi
 
 NetWatch is a local network monitoring and lightweight threat detection application developed with Python, Flask, Scapy, Socket.IO, and SQLite.
 
-The application captures packets visible to the computer, processes their metadata, stores historical records, and updates the dashboard in real time. It also includes traffic history, advanced packet search, local device discovery, security alerts, CSV/PCAP export, and database retention management.
+The application captures packets visible to the computer, processes their metadata, stores historical records, and updates the dashboard in real time.
 
-If live packet capture cannot be started, NetWatch automatically switches to sample data mode so that the dashboard can still be explored.
+NetWatch also provides traffic history, advanced packet search, local device discovery, security alerts, data export, and database retention management.
+
+If live packet capture cannot be started, the application automatically switches to sample data mode so that the dashboard can still be explored.
 
 > NetWatch is designed for educational, cybersecurity learning, and portfolio purposes. It is not intended to replace a production-grade IDS or SIEM platform.
+
+---
+
+## 📌 Contents
+
+- [Key Features](#-key-features)
+- [Application Pages](#-application-pages)
+- [How It Works](#-how-it-works)
+- [Detection Rules](#-detection-rules)
+- [Data Management](#-data-management)
+- [Export Options](#-export-options)
+- [Technologies](#-technologies)
+- [Project Structure](#-project-structure)
+- [Installation](#-installation)
+- [Running Tests](#-running-tests)
+- [Security and Privacy](#-security-and-privacy)
+- [Limitations](#-limitations)
+- [Future Improvements](#-future-improvements)
+- [Author](#-author)
 
 ---
 
@@ -36,35 +57,20 @@ If live packet capture cannot be started, NetWatch automatically switches to sam
 | Feature | Description |
 |---|---|
 | 📡 Live Packet Capture | Captures local network packets with Scapy |
-| ⚡ Real-Time Dashboard | Sends updated traffic information using Flask-SocketIO |
+| ⚡ Real-Time Dashboard | Sends live traffic information using Flask-SocketIO |
 | 📊 Protocol Statistics | Displays TCP, UDP, ICMP, and total packet counts |
-| 🕒 Traffic History | Shows traffic changes over 15 minutes, 1 hour, 6 hours, or 24 hours |
-| 🔍 Advanced Search | Filters packets by IP address, protocol, port, and time range |
-| 🖥️ Device Discovery | Tracks detected local devices, IP addresses, and MAC addresses |
+| 🕒 Traffic History | Analyzes traffic from the last 15 minutes, 1 hour, 6 hours, or 24 hours |
+| 🔍 Advanced Packet Search | Filters stored packets by IP address, protocol, port, and time |
+| 🖥️ Device Discovery | Tracks detected devices, IP addresses, and MAC addresses |
 | 🚨 Threat Detection | Detects port scans, SYN floods, ICMP floods, and high DNS traffic |
-| 💾 SQLite Storage | Stores packet metadata, alerts, and detected devices |
-| 📤 Data Export | Exports packet and alert records as CSV and recent raw packets as PCAP |
-| 🧹 Database Cleanup | Deletes packet and alert records older than the selected retention period |
-| 🧪 Automated Tests | Includes 9 tests for routes, database operations, detection rules, and monitoring |
-| 📴 Offline Assets | Uses local Chart.js and Socket.IO files without depending on a CDN |
-| 🧾 Rotating Logs | Saves application events in size-limited rotating log files |
+| 💾 SQLite Storage | Stores packet metadata, alerts, and device information |
+| 📤 CSV Export | Exports packet records and security alerts |
+| 📦 PCAP Export | Exports recent raw packets for Wireshark analysis |
+| 🧹 Database Cleanup | Deletes records older than the selected retention period |
+| 🧪 Automated Tests | Includes 9 tests for the main application components |
+| 📴 Offline Assets | Uses local Chart.js and Socket.IO files without CDN dependency |
+| 🧾 Rotating Logs | Prevents unlimited log file growth |
 | 🧪 Sample Mode | Provides demonstration data when live capture is unavailable |
-
----
-
-## 🖼️ Dashboard Preview
-
-### Live Traffic Overview
-
-![NetWatch live traffic dashboard](images/netwatch1.png)
-
-### Destination Port Analysis
-
-![NetWatch destination port analysis](images/netwatch2.png)
-
-### Recent Packet Records
-
-![NetWatch recent packet records](images/netwatch3.png)
 
 ---
 
@@ -72,78 +78,77 @@ If live packet capture cannot be started, NetWatch automatically switches to sam
 
 | Page | Route | Purpose |
 |---|---|---|
-| Live Dashboard | `/` | Displays current traffic, alerts, top IPs, ports, and recent packets |
-| Traffic History | `/history` | Visualizes historical network traffic using interactive charts |
+| Live Dashboard | `/` | Displays live statistics, alerts, top IPs, ports, and recent packets |
+| Traffic History | `/history` | Presents historical network traffic and protocol statistics |
 | Packet Search | `/search` | Searches stored packet records using advanced filters |
 | Network Devices | `/devices` | Lists devices detected from local network traffic |
-| Data Export | `/exports` | Downloads CSV/PCAP files and manages database retention |
+| Data Export | `/exports` | Downloads CSV and PCAP files and manages data retention |
 
 ---
 
-## 🏗️ System Architecture
-
-```mermaid
-flowchart TD
-    A["Scapy Packet Capture"] --> B["NetworkMonitor"]
-    B --> C["ThreatDetector"]
-    B --> D[("SQLite Database")]
-    C --> D
-    B --> E["Flask + Socket.IO"]
-    D --> E
-    E --> F["Web Dashboard"]
-```
-
-### How It Works
+## ⚙️ How It Works
 
 1. Scapy captures packets visible to the active network interface.
-2. `NetworkMonitor` extracts packet metadata and updates live statistics.
-3. `ThreatDetector` checks the traffic against rule-based detection thresholds.
-4. Packet metadata, alerts, and device information are stored in SQLite.
-5. Flask provides pages and JSON API endpoints.
-6. Flask-SocketIO sends live summary updates to the dashboard.
-7. Chart.js displays historical traffic data in the browser.
+2. `NetworkMonitor` extracts the required packet metadata.
+3. Live TCP, UDP, ICMP, and total packet statistics are calculated.
+4. `ThreatDetector` checks traffic against rule-based detection thresholds.
+5. Packet metadata, alerts, and device information are stored in SQLite.
+6. Flask provides web pages and JSON API endpoints.
+7. Flask-SocketIO sends live updates to the dashboard.
+8. Chart.js displays historical traffic information.
+9. Export tools prepare packet CSV, alert CSV, and PCAP files.
 
 ---
 
 ## 🚨 Detection Rules
 
-NetWatch uses lightweight rule-based detection:
+NetWatch uses lightweight rule-based threat detection.
 
-| Detection | Rule |
-|---|---|
-| Port Scan | 15 different destination ports within 10 seconds |
-| SYN Flood | 100 SYN packets within 5 seconds |
-| ICMP Flood | 50 ICMP packets within 10 seconds |
-| High DNS Traffic | 100 DNS packets within 10 seconds |
-| Alert Cooldown | Prevents the same alert from repeating for 30 seconds |
+| Detection | Rule | Severity |
+|---|---|---|
+| Port Scan | 15 different destination ports within 10 seconds | High |
+| SYN Flood | 100 SYN packets within 5 seconds | Critical |
+| ICMP Flood | 50 ICMP packets within 10 seconds | High |
+| High DNS Traffic | 100 DNS packets within 10 seconds | Medium |
+| Alert Cooldown | Prevents the same alert from repeating for 30 seconds | — |
 
-These thresholds can be adjusted in `detector.py`.
+Detection thresholds can be adjusted in `detector.py`.
 
 ---
 
 ## 💾 Data Management
 
-NetWatch stores the following information in SQLite:
+NetWatch stores the following packet metadata:
 
-- Packet capture time
-- Source and destination IP addresses
-- Source and destination ports
+- Capture date and time
+- Source IP address
+- Source port
+- Destination IP address
+- Destination port
 - Network protocol
 - Packet length
-- Security alerts
-- Detected device information
+
+It also stores:
+
+- Security alert type
+- Alert severity
+- Alert message
+- Alert source IP
+- Detected device IP and MAC address
 - First-seen and last-seen timestamps
 
-Packet records are written in batches to reduce unnecessary database operations.
+Packet and alert records are written to SQLite in batches to reduce unnecessary database operations.
 
-The cleanup feature can retain the latest:
+### Retention Options
+
+The database cleanup feature can retain records from the latest:
 
 - 7 days
 - 30 days
 - 90 days
 - 365 days
 
-Device records are not removed during packet and alert cleanup.
+The cleanup process removes only old packet and alert records. Detected device records are preserved.
 
 ---
 
@@ -151,21 +156,39 @@ Device records are not removed during packet and alert cleanup.
 
 ### Packet CSV
 
-Exports up to 50,000 packet metadata records.
+Packet CSV files may contain:
+
+- Capture time
+- Source and destination IP addresses
+- Source and destination ports
+- Protocol
+- Packet length
+
+A maximum of 50,000 packet records can be exported at once.
 
 ### Security Alert CSV
 
-Exports up to 10,000 detected security alerts.
+Security alert CSV files may contain:
+
+- Alert time
+- Alert type
+- Severity
+- Source IP address
+- Alert message
+
+A maximum of 10,000 alert records can be exported at once.
 
 ### PCAP
 
-Exports up to 5,000 recent raw packets captured during the current NetWatch session. PCAP files can be opened with tools such as Wireshark.
+NetWatch can export up to 5,000 recent raw packets captured during the current application session.
+
+PCAP files can be opened and analyzed using applications such as Wireshark.
 
 ---
 
 ## 🛠️ Technologies
 
-| Technology | Usage |
+| Technology | Purpose |
 |---|---|
 | Python | Core application language |
 | Flask | Web application and API routes |
@@ -174,7 +197,7 @@ Exports up to 5,000 recent raw packets captured during the current NetWatch sess
 | SQLite | Local data storage |
 | HTML | Dashboard structure |
 | CSS | Responsive dark interface |
-| JavaScript | Dynamic tables, filtering, API requests, and live updates |
+| JavaScript | Dynamic tables, filtering, and API requests |
 | Chart.js | Historical traffic visualization |
 | unittest | Automated application testing |
 
@@ -193,14 +216,7 @@ Netwatch/
 ├── packet_search.py
 ├── sniffer.py
 ├── requirements.txt
-│
-├── data/
-│   └── netwatch.db
-│
-├── images/
-│   ├── netwatch1.png
-│   ├── netwatch2.png
-│   └── netwatch3.png
+├── README.md
 │
 ├── static/
 │   ├── style.css
@@ -225,7 +241,7 @@ Netwatch/
     └── test_sniffer.py
 ```
 
-The database, logs, cache files, virtual environment, and generated PCAP files are excluded from Git.
+The virtual environment, SQLite database, logs, cache files, and generated PCAP files are excluded from Git.
 
 ---
 
@@ -288,11 +304,11 @@ http://127.0.0.1:5000
 
 ## 🪟 Windows Packet Capture
 
-Live packet capture may require:
+Live network capture may require:
 
 - Running VS Code or the terminal as Administrator
 - Installing a compatible packet capture driver such as Npcap
-- Allowing Python through the firewall when requested
+- Allowing Python through the Windows firewall when requested
 
 If packet capture cannot start, NetWatch automatically switches to sample data mode.
 
@@ -316,13 +332,15 @@ OK
 
 The tests cover:
 
-- Flask pages and JSON endpoints
+- Flask pages
+- JSON API endpoints
 - Security response headers
 - Database cleanup
-- Packet search and CSV export
+- Packet search
+- CSV export
 - Device tracking
 - Port scan detection
-- Flood detection rules
+- Flood detection
 - Sample data mode
 - Batch database writes
 
@@ -336,34 +354,37 @@ The tests cover:
 - Basic browser security headers are enabled.
 - Packet metadata is stored locally in SQLite.
 - Recent raw packets are kept in memory for session-based PCAP export.
-- Log files use rotation to prevent unlimited log growth.
+- Log rotation prevents unlimited log file growth.
+- The SQLite database and generated capture files are excluded from Git.
 
-For a fixed application secret, set the `NETWATCH_SECRET_KEY` environment variable before starting the application.
+A fixed application secret can be provided using the `NETWATCH_SECRET_KEY` environment variable.
 
 ---
 
 ## ⚠️ Limitations
 
-- NetWatch can only analyze traffic visible to the computer and selected network interface.
-- Administrator or root permissions may be required for live packet capture.
+- NetWatch can only analyze traffic visible to the computer and network interface.
+- Administrator or root permissions may be required for packet capture.
 - Encrypted traffic payloads are not decrypted.
-- Threat detection is rule-based and may produce false positives or miss advanced attacks.
+- Threat detection is rule-based and may produce false positives.
+- Advanced attacks may not be detected.
 - Raw packets used for PCAP export are cleared when the application restarts.
-- The application is intended for local use and educational environments.
+- The application is intended for local and educational use.
 
 ---
 
-## 🔮 Possible Future Improvements
+## 🔮 Future Improvements
 
 - Network interface selection
-- IPv6 device discovery improvements
-- Configurable threat detection thresholds
+- Improved IPv6 support
+- Configurable detection thresholds
 - Authentication and user roles
 - Email or desktop alert notifications
 - Docker support
 - Additional protocol analysis
 - Continuous integration testing
-- More advanced anomaly detection
+- Advanced anomaly detection
+- Custom dashboard preferences
 
 ---
 
