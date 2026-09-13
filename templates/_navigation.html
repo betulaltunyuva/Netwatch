@@ -1,0 +1,39 @@
+<nav
+    class="navigation-buttons"
+    aria-label="Main navigation"
+>
+    <a
+        href="{{ url_for('home') }}"
+        class="navigation-link{% if active_page == 'home' %} is-active{% endif %}"
+    >
+        Live Dashboard
+    </a>
+
+    <a
+        href="{{ url_for('history') }}"
+        class="navigation-link{% if active_page == 'history' %} is-active{% endif %}"
+    >
+        Traffic History
+    </a>
+
+    <a
+        href="{{ url_for('packet_search_page') }}"
+        class="navigation-link{% if active_page == 'search' %} is-active{% endif %}"
+    >
+        Packet Search
+    </a>
+
+    <a
+        href="{{ url_for('devices_page') }}"
+        class="navigation-link{% if active_page == 'devices' %} is-active{% endif %}"
+    >
+        Network Devices
+    </a>
+
+    <a
+        href="{{ url_for('exports_page') }}"
+        class="navigation-link{% if active_page == 'exports' %} is-active{% endif %}"
+    >
+        Data Export
+    </a>
+</nav>

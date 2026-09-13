@@ -1,121 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>NetWatch</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
 </head>
+
 <body>
+
     <div class="container">
+
         <h1>NetWatch</h1>
-        <p class="subtitle">Local Network Monitoring Dashboard</p>
+
+        <p class="subtitle">
+            Local Network Monitoring Dashboard
+        </p>
+
+        {% set active_page = "home" %}
+        {% include "_navigation.html" %}
+        <!-- Durum bilgileri -->
         <div class="status-badges">
-            <div class="last-updated-badge">
+
+            <div
+                class="last-updated-badge"
+                id="last-updated"
+            >
                 Last Updated: {{ summary.last_updated }}
             </div>
-            <div class="data-mode-badge data-mode-{{ summary.data_mode }}">
+
+            <div
+                id="data-mode"
+                class="data-mode-badge data-mode-{{ summary.data_mode }}"
+            >
                 {% if summary.data_mode == "live" %}
-                Live Data
+                    Live Data
+                {% elif summary.data_mode == "sample" %}
+                    Sample Data
                 {% else %}
-                Sample Data
+                    Unavailable
                 {% endif %}
             </div>
+
         </div>
 
+        <!-- Paket sayaçları -->
         <div class="cards">
+
             <div class="card">
                 <h3>Total Packets</h3>
-                <p>{{ summary.total_packets }}</p>
+
+                <p id="total-packets">
+                    {{ summary.total_packets }}
+                </p>
             </div>
 
             <div class="card">
                 <h3>TCP Packets</h3>
-                <p>{{ summary.tcp_packets }}</p>
+
+                <p id="tcp-packets">
+                    {{ summary.tcp_packets }}
+                </p>
             </div>
 
             <div class="card">
                 <h3>UDP Packets</h3>
-                <p>{{ summary.udp_packets }}</p>
+
+                <p id="udp-packets">
+                    {{ summary.udp_packets }}
+                </p>
             </div>
 
             <div class="card">
                 <h3>ICMP Packets</h3>
-                <p>{{ summary.icmp_packets }}</p>
+
+                <p id="icmp-packets">
+                    {{ summary.icmp_packets }}
+                </p>
             </div>
+
         </div>
 
+        <!-- Uyarılar -->
         <div class="alert-box">
+
             <h2>Alerts</h2>
-            {% if summary.alerts %}
-            <ul>
-                {% for alert in summary.alerts %}
-                <li>{{ alert }}</li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p>No suspicious activity detected yet.</p>
-            {% endif %}
+
+            <div id="alerts-container">
+
+                {% if summary.alerts %}
+
+                    <ul>
+                        {% for alert in summary.alerts %}
+                            <li>{{ alert }}</li>
+                        {% endfor %}
+                    </ul>
+
+                {% else %}
+
+                    <p>
+                        No suspicious activity detected.
+                    </p>
+
+                {% endif %}
+
+            </div>
+
         </div>
 
+        <!-- En aktif kaynak IP adresleri -->
         <div class="top-sources-box">
+
             <h2>Top Source IPs</h2>
-            {% if summary.top_sources %}
+
             <table class="stats-table">
+
                 <thead>
                     <tr>
                         <th>IP Address</th>
                         <th>Packet Count</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for source in summary.top_sources %}
-                    <tr>
-                        <td>{{ source.ip }}</td>
-                        <td>{{ source.packets }}</td>
-                    </tr>
-                    {% endfor %}
+
+                <tbody id="top-sources-body">
+
+                    {% if summary.top_sources %}
+
+                        {% for source in summary.top_sources %}
+                            <tr>
+                                <td>{{ source.ip }}</td>
+                                <td>{{ source.packets }}</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+                            <td colspan="2">
+                                No source IP data available.
+                            </td>
+                        </tr>
+
+                    {% endif %}
+
                 </tbody>
+
             </table>
-            {% else %}
-            <p>No source IP data available.</p>
-            {% endif %}
+
         </div>
 
+        <!-- En çok kullanılan hedef portlar -->
         <div class="top-sources-box">
+
             <h2>Top Destination Ports</h2>
-            {% if summary.top_ports %}
+
             <table class="stats-table">
+
                 <thead>
                     <tr>
                         <th>Port</th>
                         <th>Packet Count</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for port_item in summary.top_ports %}
-                    <tr>
-                        <td>{{ port_item.port }}</td>
-                        <td>{{ port_item.packets }}</td>
-                    </tr>
-                    {% endfor %}
+
+                <tbody id="top-ports-body">
+
+                    {% if summary.top_ports %}
+
+                        {% for port_item in summary.top_ports %}
+                            <tr>
+                                <td>{{ port_item.port }}</td>
+                                <td>{{ port_item.packets }}</td>
+                            </tr>
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+                            <td colspan="2">
+                                No destination port data available.
+                            </td>
+                        </tr>
+
+                    {% endif %}
+
                 </tbody>
+
             </table>
-            {% else %}
-            <p>No destination port data available.</p>
-            {% endif %}
+
         </div>
 
+        <!-- Son yakalanan paketler -->
         <div class="top-sources-box">
+
             <h2>Recent Packets</h2>
-            {% if summary.recent_packets %}
-            <div class="packet-filters" id="packet-filters">
-                <button class="packet-filter-btn is-active" type="button" data-filter="ALL">All</button>
-                <button class="packet-filter-btn" type="button" data-filter="TCP">TCP</button>
-                <button class="packet-filter-btn" type="button" data-filter="UDP">UDP</button>
-                <button class="packet-filter-btn" type="button" data-filter="ICMP">ICMP</button>
+
+            <!-- Paket filtreleri -->
+            <div
+                class="packet-filters"
+                id="packet-filters"
+            >
+
+                <button
+                    class="packet-filter-btn is-active"
+                    type="button"
+                    data-filter="ALL"
+                >
+                    All
+                </button>
+
+                <button
+                    class="packet-filter-btn"
+                    type="button"
+                    data-filter="TCP"
+                >
+                    TCP
+                </button>
+
+                <button
+                    class="packet-filter-btn"
+                    type="button"
+                    data-filter="UDP"
+                >
+                    UDP
+                </button>
+
+                <button
+                    class="packet-filter-btn"
+                    type="button"
+                    data-filter="ICMP"
+                >
+                    ICMP
+                </button>
+
             </div>
+
             <table class="stats-table">
+
                 <thead>
                     <tr>
                         <th>Time</th>
@@ -125,99 +256,553 @@
                         <th>Length</th>
                     </tr>
                 </thead>
+
                 <tbody id="recent-packets-body">
-                    {% for packet in summary.recent_packets %}
-                    <tr data-protocol="{{ packet.protocol }}">
-                        <td>{{ packet.time }}</td>
-                        <td>{{ packet.source }}</td>
-                        <td>{{ packet.destination }}</td>
-                        <td>{{ packet.protocol }}</td>
-                        <td>{{ packet.length }}</td>
-                    </tr>
-                    {% endfor %}
+
+                    {% if summary.recent_packets %}
+
+                        {% for packet in summary.recent_packets %}
+
+                            <tr data-protocol="{{ packet.protocol }}">
+                                <td>{{ packet.time }}</td>
+                                <td>{{ packet.source }}</td>
+                                <td>{{ packet.destination }}</td>
+                                <td>{{ packet.protocol }}</td>
+                                <td>{{ packet.length }}</td>
+                            </tr>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr id="no-packets-row">
+                            <td colspan="5">
+                                No recent packet data available.
+                            </td>
+                        </tr>
+
+                    {% endif %}
+
                 </tbody>
+
             </table>
-            {% else %}
-            <p>No recent packet data available.</p>
-            {% endif %}
+
         </div>
 
+        <!-- Protokol dağılım grafiği -->
         <div class="top-sources-box">
+
             <h2>Protocol Distribution</h2>
-            <div id="protocol-chart" class="protocol-chart">
-                <div class="protocol-bar-row" data-value="{{ summary.tcp_packets }}">
-                    <span class="protocol-label">TCP</span>
+
+            <div
+                id="protocol-chart"
+                class="protocol-chart"
+            >
+
+                <!-- TCP -->
+                <div class="protocol-bar-row">
+
+                    <span class="protocol-label">
+                        TCP
+                    </span>
+
                     <div class="protocol-bar-track">
-                        <div class="protocol-bar protocol-tcp"></div>
+
+                        <div
+                            id="tcp-bar"
+                            class="protocol-bar protocol-tcp"
+                        ></div>
+
                     </div>
-                    <span class="protocol-value">{{ summary.tcp_packets }}</span>
+
+                    <span
+                        id="tcp-value"
+                        class="protocol-value"
+                    >
+                        {{ summary.tcp_packets }}
+                    </span>
+
                 </div>
 
-                <div class="protocol-bar-row" data-value="{{ summary.udp_packets }}">
-                    <span class="protocol-label">UDP</span>
+                <!-- UDP -->
+                <div class="protocol-bar-row">
+
+                    <span class="protocol-label">
+                        UDP
+                    </span>
+
                     <div class="protocol-bar-track">
-                        <div class="protocol-bar protocol-udp"></div>
+
+                        <div
+                            id="udp-bar"
+                            class="protocol-bar protocol-udp"
+                        ></div>
+
                     </div>
-                    <span class="protocol-value">{{ summary.udp_packets }}</span>
+
+                    <span
+                        id="udp-value"
+                        class="protocol-value"
+                    >
+                        {{ summary.udp_packets }}
+                    </span>
+
                 </div>
 
-                <div class="protocol-bar-row" data-value="{{ summary.icmp_packets }}">
-                    <span class="protocol-label">ICMP</span>
+                <!-- ICMP -->
+                <div class="protocol-bar-row">
+
+                    <span class="protocol-label">
+                        ICMP
+                    </span>
+
                     <div class="protocol-bar-track">
-                        <div class="protocol-bar protocol-icmp"></div>
+
+                        <div
+                            id="icmp-bar"
+                            class="protocol-bar protocol-icmp"
+                        ></div>
+
                     </div>
-                    <span class="protocol-value">{{ summary.icmp_packets }}</span>
+
+                    <span
+                        id="icmp-value"
+                        class="protocol-value"
+                    >
+                        {{ summary.icmp_packets }}
+                    </span>
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
 
+    <!-- SocketIO istemci kütüphanesi -->
+    <script
+        src="{{ url_for('static', filename='vendor/socket.io.min.js') }}"
+    ></script>
+
     <script>
-        (function () {
-            const chartRows = document.querySelectorAll("#protocol-chart .protocol-bar-row");
-            const values = Array.from(chartRows, (row) => Number(row.dataset.value) || 0);
-            const maxValue = Math.max(...values, 1);
 
-            chartRows.forEach((row) => {
-                const value = Number(row.dataset.value) || 0;
-                const widthPercent = (value / maxValue) * 100;
-                const bar = row.querySelector(".protocol-bar");
-                if (bar) {
-                    bar.style.width = widthPercent + "%";
-                }
-            });
+        // Flask-SocketIO sunucusuna bağlanır.
+        const socket = io();
 
-            const filterContainer = document.getElementById("packet-filters");
-            const packetRows = document.querySelectorAll("#recent-packets-body tr[data-protocol]");
-            if (!filterContainer || !packetRows.length) {
+        // Seçili paket filtresini tutar.
+        let activeFilter = "ALL";
+
+
+        /*
+         * Tablo hücresi oluşturur.
+         */
+        function createCell(value) {
+
+            const cell = document.createElement("td");
+
+            cell.textContent = value;
+
+            return cell;
+        }
+
+
+        /*
+         * Paket sayaçlarını günceller.
+         */
+        function updateCounters(data) {
+
+            document.getElementById(
+                "total-packets"
+            ).textContent = data.total_packets;
+
+            document.getElementById(
+                "tcp-packets"
+            ).textContent = data.tcp_packets;
+
+            document.getElementById(
+                "udp-packets"
+            ).textContent = data.udp_packets;
+
+            document.getElementById(
+                "icmp-packets"
+            ).textContent = data.icmp_packets;
+        }
+
+
+        /*
+         * Son güncelleme zamanını değiştirir.
+         */
+        function updateLastUpdated(data) {
+
+            document.getElementById(
+                "last-updated"
+            ).textContent =
+                "Last Updated: " + data.last_updated;
+        }
+
+
+        /*
+         * Live Data durumunu günceller.
+         */
+        function updateDataMode(data) {
+
+            const badge = document.getElementById(
+                "data-mode"
+            );
+
+            badge.className =
+                "data-mode-badge data-mode-" +
+                data.data_mode;
+
+            if (data.data_mode === "live") {
+
+                badge.textContent = "Live Data";
+
+            } else if (data.data_mode === "sample") {
+
+                badge.textContent = "Sample Data";
+
+            } else {
+
+                badge.textContent = "Unavailable";
+            }
+        }
+
+
+        /*
+         * Uyarılar bölümünü günceller.
+         */
+        function updateAlerts(alerts) {
+
+            const container = document.getElementById(
+                "alerts-container"
+            );
+
+            container.replaceChildren();
+
+            if (!alerts || alerts.length === 0) {
+
+                const message = document.createElement("p");
+
+                message.textContent =
+                    "No suspicious activity detected.";
+
+                container.appendChild(message);
+
                 return;
             }
 
-            const filterButtons = filterContainer.querySelectorAll(".packet-filter-btn");
-            const setActiveButton = (filterValue) => {
-                filterButtons.forEach((button) => {
-                    const isActive = button.dataset.filter === filterValue;
-                    button.classList.toggle("is-active", isActive);
-                });
-            };
+            const list = document.createElement("ul");
 
-            const applyFilter = (filterValue) => {
-                packetRows.forEach((row) => {
-                    const protocol = (row.dataset.protocol || "").toUpperCase();
-                    const shouldShow = filterValue === "ALL" || protocol === filterValue;
-                    row.style.display = shouldShow ? "" : "none";
-                });
-                setActiveButton(filterValue);
-            };
+            alerts.forEach((alert) => {
 
-            filterContainer.addEventListener("click", (event) => {
-                const button = event.target.closest(".packet-filter-btn");
-                if (!button) {
-                    return;
-                }
-                applyFilter((button.dataset.filter || "ALL").toUpperCase());
+                const item = document.createElement("li");
+
+                item.textContent = alert;
+
+                list.appendChild(item);
             });
-        })();
+
+            container.appendChild(list);
+        }
+
+
+        /*
+         * En aktif kaynak IP tablosunu günceller.
+         */
+        function updateTopSources(sources) {
+
+            const tableBody = document.getElementById(
+                "top-sources-body"
+            );
+
+            tableBody.replaceChildren();
+
+            if (!sources || sources.length === 0) {
+
+                const row = document.createElement("tr");
+
+                const cell = createCell(
+                    "No source IP data available."
+                );
+
+                cell.colSpan = 2;
+
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+
+                return;
+            }
+
+            sources.forEach((source) => {
+
+                const row = document.createElement("tr");
+
+                row.appendChild(
+                    createCell(source.ip)
+                );
+
+                row.appendChild(
+                    createCell(source.packets)
+                );
+
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        /*
+         * En çok kullanılan hedef portları günceller.
+         */
+        function updateTopPorts(ports) {
+
+            const tableBody = document.getElementById(
+                "top-ports-body"
+            );
+
+            tableBody.replaceChildren();
+
+            if (!ports || ports.length === 0) {
+
+                const row = document.createElement("tr");
+
+                const cell = createCell(
+                    "No destination port data available."
+                );
+
+                cell.colSpan = 2;
+
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+
+                return;
+            }
+
+            ports.forEach((portItem) => {
+
+                const row = document.createElement("tr");
+
+                row.appendChild(
+                    createCell(portItem.port)
+                );
+
+                row.appendChild(
+                    createCell(portItem.packets)
+                );
+
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        /*
+         * Son paketler tablosunu günceller.
+         */
+        function updateRecentPackets(packets) {
+
+            const tableBody = document.getElementById(
+                "recent-packets-body"
+            );
+
+            tableBody.replaceChildren();
+
+            if (!packets || packets.length === 0) {
+
+                const row = document.createElement("tr");
+
+                const cell = createCell(
+                    "No recent packet data available."
+                );
+
+                cell.colSpan = 5;
+
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+
+                return;
+            }
+
+            packets.forEach((packet) => {
+
+                const row = document.createElement("tr");
+
+                row.dataset.protocol = packet.protocol;
+
+                row.appendChild(
+                    createCell(packet.time)
+                );
+
+                row.appendChild(
+                    createCell(packet.source)
+                );
+
+                row.appendChild(
+                    createCell(packet.destination)
+                );
+
+                row.appendChild(
+                    createCell(packet.protocol)
+                );
+
+                row.appendChild(
+                    createCell(packet.length)
+                );
+
+                tableBody.appendChild(row);
+            });
+
+            applyPacketFilter(activeFilter);
+        }
+
+
+        /*
+         * Protokol dağılım grafiğini günceller.
+         */
+        function updateProtocolChart(data) {
+
+            const tcp = Number(data.tcp_packets) || 0;
+            const udp = Number(data.udp_packets) || 0;
+            const icmp = Number(data.icmp_packets) || 0;
+
+            const maximumValue = Math.max(
+                tcp,
+                udp,
+                icmp,
+                1
+            );
+
+            document.getElementById(
+                "tcp-bar"
+            ).style.width =
+                (tcp / maximumValue) * 100 + "%";
+
+            document.getElementById(
+                "udp-bar"
+            ).style.width =
+                (udp / maximumValue) * 100 + "%";
+
+            document.getElementById(
+                "icmp-bar"
+            ).style.width =
+                (icmp / maximumValue) * 100 + "%";
+
+            document.getElementById(
+                "tcp-value"
+            ).textContent = tcp;
+
+            document.getElementById(
+                "udp-value"
+            ).textContent = udp;
+
+            document.getElementById(
+                "icmp-value"
+            ).textContent = icmp;
+        }
+
+
+        /*
+         * Son paketleri protokole göre filtreler.
+         */
+        function applyPacketFilter(filterValue) {
+
+            activeFilter = filterValue;
+
+            const rows = document.querySelectorAll(
+                "#recent-packets-body tr[data-protocol]"
+            );
+
+            rows.forEach((row) => {
+
+                const protocol = (
+                    row.dataset.protocol || ""
+                ).toUpperCase();
+
+                const shouldShow =
+                    filterValue === "ALL" ||
+                    protocol === filterValue;
+
+                row.style.display =
+                    shouldShow ? "" : "none";
+            });
+
+            const buttons = document.querySelectorAll(
+                ".packet-filter-btn"
+            );
+
+            buttons.forEach((button) => {
+
+                const isActive =
+                    button.dataset.filter === filterValue;
+
+                button.classList.toggle(
+                    "is-active",
+                    isActive
+                );
+            });
+        }
+
+
+        /*
+         * Filtre düğmelerini çalıştırır.
+         */
+        document.getElementById(
+            "packet-filters"
+        ).addEventListener("click", (event) => {
+
+            const button = event.target.closest(
+                ".packet-filter-btn"
+            );
+
+            if (!button) {
+                return;
+            }
+
+            applyPacketFilter(
+                button.dataset.filter
+            );
+        });
+
+
+        /*
+         * Sunucudan her yeni veri geldiğinde
+         * dashboard'un tamamını günceller.
+         */
+        socket.on("network_update", (data) => {
+
+            updateCounters(data);
+            updateLastUpdated(data);
+            updateDataMode(data);
+            updateAlerts(data.alerts);
+            updateTopSources(data.top_sources);
+            updateTopPorts(data.top_ports);
+            updateRecentPackets(data.recent_packets);
+            updateProtocolChart(data);
+        });
+
+
+        /*
+         * Sayfa ilk açıldığında mevcut grafiği oluşturur.
+         */
+        const initialTcpPackets = Number(
+    document.getElementById("tcp-packets").textContent
+) || 0;
+
+const initialUdpPackets = Number(
+    document.getElementById("udp-packets").textContent
+) || 0;
+
+const initialIcmpPackets = Number(
+    document.getElementById("icmp-packets").textContent
+) || 0;
+
+updateProtocolChart({
+    tcp_packets: initialTcpPackets,
+    udp_packets: initialUdpPackets,
+    icmp_packets: initialIcmpPackets
+});
     </script>
+
 </body>
+
 </html>

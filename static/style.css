@@ -1,3 +1,8 @@
+/* Genel sayfa ayarları */
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -7,22 +12,80 @@ body {
 
 .container {
     width: 90%;
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 40px auto;
 }
 
+
+/* Başlık alanı */
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
 h1 {
-    font-size: 42px;
+    margin-top: 0;
     margin-bottom: 10px;
+    font-size: 42px;
     color: #38bdf8;
 }
 
 .subtitle {
+    margin-top: 0;
+    margin-bottom: 12px;
     font-size: 18px;
     color: #cbd5e1;
-    margin-bottom: 12px;
 }
 
+.section-description {
+    margin-top: -5px;
+    margin-bottom: 18px;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+
+/* Sayfa navigasyonu */
+.navigation-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.navigation-link {
+    display: inline-block;
+    padding: 10px 16px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background-color: #1e293b;
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.navigation-link:hover {
+    border-color: #38bdf8;
+    color: #f8fafc;
+}
+
+.navigation-link.is-active {
+    border-color: #38bdf8;
+    background: linear-gradient(
+        90deg,
+        #0ea5e9,
+        #38bdf8
+    );
+    color: #0f172a;
+}
+
+
+/* Canlı veri durumları */
 .status-badges {
     display: flex;
     flex-wrap: wrap;
@@ -32,68 +95,81 @@ h1 {
 
 .last-updated-badge {
     display: inline-block;
-    background-color: #1e293b;
+    padding: 8px 12px;
     border: 1px solid #334155;
+    border-radius: 999px;
+    background-color: #1e293b;
     color: #93c5fd;
     font-size: 13px;
     font-weight: bold;
-    padding: 8px 12px;
-    border-radius: 999px;
 }
 
 .data-mode-badge {
     display: inline-block;
+    padding: 8px 12px;
     border: 1px solid transparent;
+    border-radius: 999px;
     font-size: 13px;
     font-weight: bold;
-    padding: 8px 12px;
-    border-radius: 999px;
 }
 
 .data-mode-live {
-    background-color: rgba(16, 185, 129, 0.16);
     border-color: rgba(16, 185, 129, 0.5);
+    background-color: rgba(16, 185, 129, 0.16);
     color: #6ee7b7;
 }
 
 .data-mode-sample {
-    background-color: rgba(249, 115, 22, 0.16);
     border-color: rgba(249, 115, 22, 0.5);
+    background-color: rgba(249, 115, 22, 0.16);
     color: #fdba74;
 }
 
+.data-mode-unavailable {
+    border-color: rgba(244, 63, 94, 0.5);
+    background-color: rgba(244, 63, 94, 0.16);
+    color: #fda4af;
+}
+
+
+/* Özet kartları */
 .cards {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(200px, 1fr)
+    );
     gap: 20px;
-    flex-wrap: wrap;
     margin-bottom: 30px;
 }
 
 .card {
-    background-color: #1e293b;
+    min-width: 0;
     padding: 20px;
     border-radius: 14px;
-    min-width: 200px;
-    flex: 1;
+    background-color: #1e293b;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .card h3 {
     margin-top: 0;
-    font-size: 18px;
+    margin-bottom: 10px;
     color: #93c5fd;
+    font-size: 18px;
 }
 
 .card p {
+    margin: 0;
     font-size: 28px;
-    margin: 10px 0 0 0;
     font-weight: bold;
 }
 
+
+/* Uyarılar alanı */
 .alert-box {
-    background-color: #1e293b;
     padding: 20px;
     border-radius: 14px;
+    background-color: #1e293b;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -102,12 +178,25 @@ h1 {
     color: #fda4af;
 }
 
+.alert-box ul {
+    margin-bottom: 0;
+    padding-left: 28px;
+}
+
+.alert-box li {
+    margin: 6px 0;
+    line-height: 1.4;
+}
+
+
+/* Dashboard bölümleri */
 .top-sources-box {
-    background-color: #1e293b;
+    margin-top: 20px;
     padding: 20px;
     border-radius: 14px;
-    margin-top: 20px;
+    background-color: #1e293b;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
 }
 
 .top-sources-box h2 {
@@ -115,32 +204,52 @@ h1 {
     color: #93c5fd;
 }
 
+
+/* Tablolar */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
 .stats-table {
     width: 100%;
-    border-collapse: collapse;
     margin-top: 10px;
+    border-collapse: collapse;
+}
+
+.table-wrapper .stats-table {
+    min-width: 900px;
 }
 
 .stats-table th,
 .stats-table td {
-    text-align: left;
     padding: 10px 12px;
     border-bottom: 1px solid #334155;
+    text-align: left;
+    vertical-align: top;
 }
 
 .stats-table th {
     color: #cbd5e1;
     font-size: 14px;
+    white-space: nowrap;
 }
 
 .stats-table td {
     color: #f8fafc;
+    line-height: 1.4;
+}
+
+.stats-table tbody tr {
+    transition: background-color 0.2s ease;
 }
 
 .stats-table tbody tr:hover {
     background-color: #26354a;
 }
 
+
+/* Canlı paket filtreleri */
 .packet-filters {
     display: flex;
     flex-wrap: wrap;
@@ -150,11 +259,11 @@ h1 {
 }
 
 .packet-filter-btn {
+    padding: 8px 14px;
     border: 1px solid #334155;
+    border-radius: 999px;
     background-color: #0f172a;
     color: #cbd5e1;
-    padding: 8px 14px;
-    border-radius: 999px;
     font-size: 13px;
     font-weight: bold;
     cursor: pointer;
@@ -167,16 +276,22 @@ h1 {
 }
 
 .packet-filter-btn.is-active {
-    background: linear-gradient(90deg, #0ea5e9, #38bdf8);
     border-color: #38bdf8;
+    background: linear-gradient(
+        90deg,
+        #0ea5e9,
+        #38bdf8
+    );
     color: #0f172a;
 }
 
+
+/* Protokol dağılım grafiği */
 .protocol-chart {
-    margin-top: 10px;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    margin-top: 10px;
 }
 
 .protocol-bar-row {
@@ -194,32 +309,688 @@ h1 {
 .protocol-bar-track {
     width: 100%;
     height: 14px;
-    background-color: #334155;
-    border-radius: 999px;
     overflow: hidden;
+    border-radius: 999px;
+    background-color: #334155;
 }
 
 .protocol-bar {
-    height: 100%;
     width: 0;
+    height: 100%;
     border-radius: 999px;
     transition: width 0.35s ease;
 }
 
 .protocol-tcp {
-    background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+    background: linear-gradient(
+        90deg,
+        #38bdf8,
+        #0ea5e9
+    );
 }
 
 .protocol-udp {
-    background: linear-gradient(90deg, #34d399, #10b981);
+    background: linear-gradient(
+        90deg,
+        #34d399,
+        #10b981
+    );
 }
 
 .protocol-icmp {
-    background: linear-gradient(90deg, #f59e0b, #f97316);
+    background: linear-gradient(
+        90deg,
+        #f59e0b,
+        #f97316
+    );
 }
 
 .protocol-value {
     color: #f8fafc;
     font-weight: bold;
     text-align: right;
+}
+
+
+/* Trafik geçmişi araç çubuğu */
+.history-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 22px;
+    padding: 16px;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    background-color: #1e293b;
+}
+
+.time-range-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.time-range-button {
+    padding: 9px 14px;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    background-color: #0f172a;
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.time-range-button:hover {
+    border-color: #38bdf8;
+    color: #f8fafc;
+}
+
+.time-range-button.is-active {
+    border-color: #38bdf8;
+    background: linear-gradient(
+        90deg,
+        #0ea5e9,
+        #38bdf8
+    );
+    color: #0f172a;
+}
+
+.history-status {
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+
+/* Trafik geçmişi grafiği */
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 380px;
+}
+
+
+/* Uyarı önem seviyeleri */
+.severity-cell {
+    font-weight: bold;
+}
+
+.severity-low {
+    color: #93c5fd !important;
+}
+
+.severity-medium {
+    color: #facc15 !important;
+}
+
+.severity-high {
+    color: #fb923c !important;
+}
+
+.severity-critical {
+    color: #fb7185 !important;
+}
+
+
+/* Tablet görünümü */
+@media (max-width: 900px) {
+    .container {
+        width: 94%;
+        margin: 25px auto;
+    }
+
+    .page-header {
+        flex-direction: column;
+    }
+
+    .navigation-buttons {
+        margin-top: 0;
+    }
+
+    .chart-container {
+        height: 320px;
+    }
+}
+
+
+/* Telefon görünümü */
+@media (max-width: 600px) {
+    .container {
+        width: 94%;
+        margin: 20px auto;
+    }
+
+    h1 {
+        font-size: 34px;
+    }
+
+    .subtitle {
+        font-size: 16px;
+    }
+
+    .navigation-buttons,
+    .navigation-link {
+        width: 100%;
+    }
+
+    .navigation-link {
+        text-align: center;
+    }
+
+    .cards {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .card {
+        padding: 18px;
+    }
+
+    .card p {
+        font-size: 25px;
+    }
+
+    .top-sources-box,
+    .alert-box {
+        padding: 16px;
+    }
+
+    .history-toolbar {
+        align-items: stretch;
+    }
+
+    .time-range-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+    }
+
+    .time-range-button {
+        width: 100%;
+    }
+
+    .history-status {
+        width: 100%;
+        text-align: center;
+    }
+
+    .protocol-bar-row {
+        grid-template-columns: 55px 1fr 40px;
+        gap: 8px;
+    }
+
+    .chart-container {
+        height: 280px;
+    }
+}
+
+/* Gelişmiş paket arama paneli */
+.search-panel {
+    margin-bottom: 22px;
+    padding: 22px;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    background-color: #1e293b;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.search-panel h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #93c5fd;
+}
+
+
+/* Arama formunun alanları */
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(250px, 1fr)
+    );
+    gap: 18px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    outline: none;
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input::placeholder {
+    color: #64748b;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+
+.form-group input[type="datetime-local"] {
+    color-scheme: dark;
+}
+
+
+/* Arama formu düğmeleri */
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.primary-button,
+.secondary-button {
+    min-width: 150px;
+    padding: 11px 18px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.primary-button {
+    border: 1px solid #38bdf8;
+    background: linear-gradient(
+        90deg,
+        #0ea5e9,
+        #38bdf8
+    );
+    color: #0f172a;
+}
+
+.primary-button:hover {
+    filter: brightness(1.08);
+}
+
+.secondary-button {
+    border: 1px solid #475569;
+    background-color: #0f172a;
+    color: #cbd5e1;
+}
+
+.secondary-button:hover {
+    border-color: #38bdf8;
+    color: #f8fafc;
+}
+
+
+/* Arama sonucu durum mesajı */
+.search-result-status {
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    background-color: rgba(30, 41, 59, 0.75);
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+
+/* Arama ekranı tablet düzeni */
+@media (max-width: 900px) {
+    .search-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+
+/* Arama ekranı telefon düzeni */
+@media (max-width: 600px) {
+    .search-panel {
+        padding: 16px;
+    }
+
+    .search-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .primary-button,
+    .secondary-button {
+        width: 100%;
+    }
+}
+
+/* Cihazlar sayfası araç çubuğu */
+.device-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 22px;
+    padding: 16px 18px;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    background-color: #1e293b;
+}
+
+.device-description {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+
+/* Cihaz sayı renkleri */
+.online-number {
+    color: #6ee7b7;
+}
+
+.offline-number {
+    color: #fda4af;
+}
+
+
+/* Cihaz durum yazıları */
+.device-status {
+    font-weight: bold;
+}
+
+.device-status-online {
+    color: #6ee7b7 !important;
+}
+
+.device-status-online::before {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 7px;
+    border-radius: 50%;
+    background-color: #10b981;
+    content: "";
+}
+
+.device-status-offline {
+    color: #fda4af !important;
+}
+
+.device-status-offline::before {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 7px;
+    border-radius: 50%;
+    background-color: #f43f5e;
+    content: "";
+}
+
+
+/* Cihaz algılama bilgi kutusu */
+.device-information-box {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 14px;
+    background-color: rgba(56, 189, 248, 0.08);
+}
+
+.device-information-box h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #93c5fd;
+    font-size: 20px;
+}
+
+.device-information-box p {
+    margin: 0;
+    color: #cbd5e1;
+    line-height: 1.6;
+}
+
+
+/* Cihaz sayfası telefon görünümü */
+@media (max-width: 600px) {
+    .device-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .device-information-box {
+        padding: 16px;
+    }
+}
+
+/* Dışa aktarma araç çubuğu */
+.export-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 22px;
+    padding: 16px 18px;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    background-color: #1e293b;
+}
+
+.export-toolbar p {
+    margin: 0;
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+
+/* Dışa aktarma kartlarının yerleşimi */
+.export-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(280px, 1fr)
+    );
+    gap: 20px;
+}
+
+.export-card {
+    display: flex;
+    flex-direction: column;
+    padding: 22px;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    background-color: #1e293b;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.export-card h2 {
+    margin-top: 15px;
+    margin-bottom: 10px;
+    color: #93c5fd;
+    font-size: 22px;
+}
+
+.export-card > p {
+    margin-top: 0;
+    color: #cbd5e1;
+    line-height: 1.6;
+}
+
+.export-card ul {
+    margin-top: 5px;
+    margin-bottom: 22px;
+    padding-left: 22px;
+    color: #94a3b8;
+    line-height: 1.7;
+}
+
+
+/* CSV ve PCAP simgeleri */
+.export-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 66px;
+    height: 42px;
+    border: 1px solid rgba(52, 211, 153, 0.5);
+    border-radius: 10px;
+    background-color: rgba(52, 211, 153, 0.13);
+    color: #6ee7b7;
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.export-icon-alert {
+    border-color: rgba(251, 146, 60, 0.5);
+    background-color: rgba(251, 146, 60, 0.13);
+    color: #fdba74;
+}
+
+.export-icon-pcap {
+    width: 76px;
+    border-color: rgba(167, 139, 250, 0.5);
+    background-color: rgba(167, 139, 250, 0.13);
+    color: #c4b5fd;
+}
+
+
+/* Dışa aktarma formları */
+.export-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: auto;
+}
+
+.export-form label {
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.export-form select {
+    width: 100%;
+    height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    outline: none;
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-size: 14px;
+}
+
+.export-form select:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+
+
+/* İndirme düğmesi */
+.download-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 18px;
+    border: 1px solid #38bdf8;
+    border-radius: 9px;
+    background: linear-gradient(
+        90deg,
+        #0ea5e9,
+        #38bdf8
+    );
+    color: #0f172a;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.download-button:hover {
+    filter: brightness(1.08);
+}
+
+.download-button.is-disabled {
+    border-color: #475569;
+    background: #334155;
+    color: #94a3b8;
+    cursor: not-allowed;
+    filter: none;
+}
+
+
+/* PCAP hazır olma bilgisi */
+.pcap-availability {
+    min-height: 38px;
+    margin: 0;
+    color: #94a3b8;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+
+/* Dışa aktarma sayfası telefon görünümü */
+@media (max-width: 600px) {
+    .export-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .export-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .export-card {
+        padding: 18px;
+    }
+}
+
+.export-icon-cleanup {
+    border-color: rgba(248, 113, 113, 0.5);
+    background-color: rgba(248, 113, 113, 0.13);
+    color: #fca5a5;
+}
+
+.cleanup-button {
+    border-color: #f87171;
+    background: linear-gradient(
+        90deg,
+        #dc2626,
+        #f87171
+    );
+    color: #ffffff;
+}
+
+.download-button:disabled {
+    cursor: wait;
+    filter: grayscale(0.4);
+    opacity: 0.7;
 }

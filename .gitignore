@@ -6,3 +6,8 @@ __pycache__/
 .vscode/
 *.log
 logs/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+exports/*.pcap
+.coverage

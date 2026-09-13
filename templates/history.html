@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>NetWatch - Traffic History</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Sayfa başlığı -->
+        <div class="page-header">
+
+            <div>
+                <h1>NetWatch</h1>
+
+                <p class="subtitle">
+                    Network Traffic History
+                </p>
+            </div>
+
+            {% set active_page = "history" %}
+            {% include "_navigation.html" %}
+
+        </div>
+
+        <!-- Zaman aralığı seçimi -->
+        <div class="history-toolbar">
+
+            <div class="time-range-buttons">
+
+                <button
+                    type="button"
+                    class="time-range-button"
+                    data-minutes="15"
+                >
+                    Last 15 Minutes
+                </button>
+
+                <button
+                    type="button"
+                    class="time-range-button is-active"
+                    data-minutes="60"
+                >
+                    Last 1 Hour
+                </button>
+
+                <button
+                    type="button"
+                    class="time-range-button"
+                    data-minutes="360"
+                >
+                    Last 6 Hours
+                </button>
+
+                <button
+                    type="button"
+                    class="time-range-button"
+                    data-minutes="1440"
+                >
+                    Last 24 Hours
+                </button>
+
+            </div>
+
+            <div
+                id="history-status"
+                class="history-status"
+            >
+                Loading history...
+            </div>
+
+        </div>
+
+        <!-- Geçmiş trafik özeti -->
+        <div class="cards">
+
+            <div class="card">
+                <h3>Total Packets</h3>
+
+                <p id="history-total">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>TCP Packets</h3>
+
+                <p id="history-tcp">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>UDP Packets</h3>
+
+                <p id="history-udp">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>ICMP Packets</h3>
+
+                <p id="history-icmp">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Transferred Data</h3>
+
+                <p id="history-bytes">
+                    0 B
+                </p>
+            </div>
+
+        </div>
+
+        <!-- Zaman grafiği -->
+        <div class="top-sources-box">
+
+            <h2>Traffic Over Time</h2>
+
+            <p class="section-description">
+                Packet counts grouped by minute
+            </p>
+
+            <div class="chart-container">
+
+                <canvas id="traffic-history-chart"></canvas>
+
+            </div>
+
+        </div>
+
+        <!-- Güvenlik uyarıları -->
+        <div class="top-sources-box">
+
+            <h2>Security Alert History</h2>
+
+            <div class="table-wrapper">
+
+                <table class="stats-table">
+
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Severity</th>
+                            <th>Alert Type</th>
+                            <th>Source IP</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="history-alerts-body">
+
+                        <tr>
+                            <td colspan="5">
+                                Loading security alerts...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- Geçmiş paketler -->
+        <div class="top-sources-box">
+
+            <h2>Saved Packets</h2>
+
+            <p class="section-description">
+                The latest 100 packets in the selected time range
+            </p>
+
+            <div class="table-wrapper">
+
+                <table class="stats-table">
+
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Source IP</th>
+                            <th>Source Port</th>
+                            <th>Destination IP</th>
+                            <th>Destination Port</th>
+                            <th>Protocol</th>
+                            <th>Length</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="history-packets-body">
+
+                        <tr>
+                            <td colspan="7">
+                                Loading saved packets...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Chart.js grafik kütüphanesi -->
+    <script
+        src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"
+    ></script>
+    
+    <script>
+
+        // Seçili zaman aralığı.
+        let activeMinutes = 60;
+
+        // Chart.js grafik nesnesi.
+        let trafficChart = null;
+
+
+        /*
+         * Yeni tablo hücresi oluşturur.
+         */
+        function createCell(value) {
+
+            const cell = document.createElement("td");
+
+            cell.textContent = value;
+
+            return cell;
+        }
+
+
+        /*
+         * Byte değerini okunabilir hâle getirir.
+         */
+        function formatBytes(byteValue) {
+
+            const bytes = Number(byteValue) || 0;
+
+            if (bytes === 0) {
+                return "0 B";
+            }
+
+            if (bytes < 1024) {
+                return bytes + " B";
+            }
+
+            if (bytes < 1024 * 1024) {
+
+                return (
+                    bytes / 1024
+                ).toFixed(2) + " KB";
+            }
+
+            if (bytes < 1024 * 1024 * 1024) {
+
+                return (
+                    bytes / (1024 * 1024)
+                ).toFixed(2) + " MB";
+            }
+
+            return (
+                bytes / (1024 * 1024 * 1024)
+            ).toFixed(2) + " GB";
+        }
+
+
+        /*
+         * Grafik üzerindeki tarih etiketini düzenler.
+         */
+        function formatTimeLabel(timeLabel) {
+
+            if (!timeLabel) {
+                return "";
+            }
+
+            const parts = timeLabel.split(" ");
+
+            if (parts.length < 2) {
+                return timeLabel;
+            }
+
+            const datePart = parts[0];
+            const timePart = parts[1];
+
+            if (activeMinutes >= 1440) {
+
+                return (
+                    datePart.slice(5) +
+                    " " +
+                    timePart
+                );
+            }
+
+            return timePart;
+        }
+
+
+        /*
+         * Özet kartlarını günceller.
+         */
+        function updateHistorySummary(summary) {
+
+            document.getElementById(
+                "history-total"
+            ).textContent = summary.total_packets || 0;
+
+            document.getElementById(
+                "history-tcp"
+            ).textContent = summary.tcp_packets || 0;
+
+            document.getElementById(
+                "history-udp"
+            ).textContent = summary.udp_packets || 0;
+
+            document.getElementById(
+                "history-icmp"
+            ).textContent = summary.icmp_packets || 0;
+
+            document.getElementById(
+                "history-bytes"
+            ).textContent = formatBytes(
+                summary.total_bytes
+            );
+        }
+
+
+        /*
+         * Trafik geçmişi grafiğini oluşturur veya günceller.
+         */
+        function updateTrafficChart(timeline) {
+
+            const labels = timeline.map((item) => {
+                return formatTimeLabel(
+                    item.time_label
+                );
+            });
+
+            const totalValues = timeline.map((item) => {
+                return item.total_packets || 0;
+            });
+
+            const tcpValues = timeline.map((item) => {
+                return item.tcp_packets || 0;
+            });
+
+            const udpValues = timeline.map((item) => {
+                return item.udp_packets || 0;
+            });
+
+            const icmpValues = timeline.map((item) => {
+                return item.icmp_packets || 0;
+            });
+
+            if (trafficChart !== null) {
+
+                trafficChart.data.labels = labels;
+
+                trafficChart.data.datasets[0].data =
+                    totalValues;
+
+                trafficChart.data.datasets[1].data =
+                    tcpValues;
+
+                trafficChart.data.datasets[2].data =
+                    udpValues;
+
+                trafficChart.data.datasets[3].data =
+                    icmpValues;
+
+                trafficChart.update();
+
+                return;
+            }
+
+            const canvas = document.getElementById(
+                "traffic-history-chart"
+            );
+
+            trafficChart = new Chart(
+                canvas,
+                {
+                    type: "line",
+
+                    data: {
+                        labels: labels,
+
+                        datasets: [
+                            {
+                                label: "Total",
+                                data: totalValues,
+                                borderColor: "#a78bfa",
+                                backgroundColor:
+                                    "rgba(167, 139, 250, 0.15)",
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointRadius: 2
+                            },
+                            {
+                                label: "TCP",
+                                data: tcpValues,
+                                borderColor: "#38bdf8",
+                                backgroundColor:
+                                    "rgba(56, 189, 248, 0.15)",
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointRadius: 2
+                            },
+                            {
+                                label: "UDP",
+                                data: udpValues,
+                                borderColor: "#34d399",
+                                backgroundColor:
+                                    "rgba(52, 211, 153, 0.15)",
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointRadius: 2
+                            },
+                            {
+                                label: "ICMP",
+                                data: icmpValues,
+                                borderColor: "#fb923c",
+                                backgroundColor:
+                                    "rgba(251, 146, 60, 0.15)",
+                                borderWidth: 2,
+                                tension: 0.3,
+                                pointRadius: 2
+                            }
+                        ]
+                    },
+
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+
+                        interaction: {
+                            mode: "index",
+                            intersect: false
+                        },
+
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: "#f8fafc"
+                                }
+                            }
+                        },
+
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: "#cbd5e1",
+                                    maxRotation: 45,
+                                    minRotation: 0
+                                },
+
+                                grid: {
+                                    color:
+                                        "rgba(51, 65, 85, 0.5)"
+                                }
+                            },
+
+                            y: {
+                                beginAtZero: true,
+
+                                ticks: {
+                                    color: "#cbd5e1",
+                                    precision: 0
+                                },
+
+                                grid: {
+                                    color:
+                                        "rgba(51, 65, 85, 0.5)"
+                                }
+                            }
+                        }
+                    }
+                }
+            );
+        }
+
+
+        /*
+         * Güvenlik uyarıları tablosunu günceller.
+         */
+        function updateAlertHistory(alerts) {
+
+            const tableBody = document.getElementById(
+                "history-alerts-body"
+            );
+
+            tableBody.replaceChildren();
+
+            if (!alerts || alerts.length === 0) {
+
+                const row = document.createElement("tr");
+
+                const cell = createCell(
+                    "No security alerts in this time range."
+                );
+
+                cell.colSpan = 5;
+
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+
+                return;
+            }
+
+            alerts.forEach((alert) => {
+
+                const row = document.createElement("tr");
+
+                row.appendChild(
+                    createCell(alert.created_at)
+                );
+
+                const severityCell = createCell(
+                    alert.severity
+                );
+
+                severityCell.classList.add(
+                    "severity-cell",
+                    "severity-" +
+                    alert.severity.toLowerCase()
+                );
+
+                row.appendChild(severityCell);
+
+                row.appendChild(
+                    createCell(alert.alert_type)
+                );
+
+                row.appendChild(
+                    createCell(alert.source_ip || "-")
+                );
+
+                row.appendChild(
+                    createCell(alert.message)
+                );
+
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        /*
+         * Geçmiş paketler tablosunu günceller.
+         */
+        function updatePacketHistory(packets) {
+
+            const tableBody = document.getElementById(
+                "history-packets-body"
+            );
+
+            tableBody.replaceChildren();
+
+            if (!packets || packets.length === 0) {
+
+                const row = document.createElement("tr");
+
+                const cell = createCell(
+                    "No saved packets in this time range."
+                );
+
+                cell.colSpan = 7;
+
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+
+                return;
+            }
+
+            packets.forEach((packet) => {
+
+                const row = document.createElement("tr");
+
+                row.appendChild(
+                    createCell(packet.captured_at)
+                );
+
+                row.appendChild(
+                    createCell(packet.source_ip)
+                );
+
+                row.appendChild(
+                    createCell(
+                        packet.source_port ?? "-"
+                    )
+                );
+
+                row.appendChild(
+                    createCell(packet.destination_ip)
+                );
+
+                row.appendChild(
+                    createCell(
+                        packet.destination_port ?? "-"
+                    )
+                );
+
+                row.appendChild(
+                    createCell(packet.protocol)
+                );
+
+                row.appendChild(
+                    createCell(packet.packet_length)
+                );
+
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        /*
+         * Seçili zaman düğmesini işaretler.
+         */
+        function setActiveTimeButton(minutes) {
+
+            const buttons = document.querySelectorAll(
+                ".time-range-button"
+            );
+
+            buttons.forEach((button) => {
+
+                const buttonMinutes = Number(
+                    button.dataset.minutes
+                );
+
+                button.classList.toggle(
+                    "is-active",
+                    buttonMinutes === minutes
+                );
+            });
+        }
+
+
+        /*
+         * API'den trafik geçmişini getirir.
+         */
+        async function loadHistory(
+            minutes,
+            showLoading = true
+        ) {
+
+            activeMinutes = Number(minutes) || 60;
+
+            setActiveTimeButton(activeMinutes);
+
+            const status = document.getElementById(
+                "history-status"
+            );
+
+            if (showLoading) {
+                status.textContent = "Loading history...";
+            }
+
+            try {
+                const response = await fetch(
+                    "/api/history?minutes=" +
+                    activeMinutes
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "History request failed."
+                    );
+                }
+
+                const data = await response.json();
+
+                updateHistorySummary(data.summary);
+                updateTrafficChart(data.timeline);
+                updateAlertHistory(data.alerts);
+                updatePacketHistory(data.packets);
+
+                const now = new Date();
+
+                status.textContent =
+                    "Updated: " +
+                    now.toLocaleTimeString();
+
+            } catch (error) {
+
+                status.textContent =
+                    "History could not be loaded.";
+
+                console.error(error);
+            }
+        }
+
+
+        /*
+         * Zaman aralığı düğmelerini çalıştırır.
+         */
+        document.querySelector(
+            ".time-range-buttons"
+        ).addEventListener("click", (event) => {
+
+            const button = event.target.closest(
+                ".time-range-button"
+            );
+
+            if (!button) {
+                return;
+            }
+
+            loadHistory(
+                Number(button.dataset.minutes)
+            );
+        });
+
+
+        /*
+         * Sayfa açıldığında son bir saatlik
+         * geçmişi getirir.
+         */
+        loadHistory(60);
+
+
+        /*
+         * Geçmiş verilerini her 10 saniyede
+         * otomatik olarak yeniler.
+         */
+        setInterval(() => {
+
+            loadHistory(
+                activeMinutes,
+                false
+            );
+
+        }, 10000);
+
+    </script>
+
+</body>
+
+</html>

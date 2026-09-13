@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>NetWatch - Packet Search</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Sayfa başlığı -->
+        <div class="page-header">
+
+            <div>
+                <h1>NetWatch</h1>
+
+                <p class="subtitle">
+                    Advanced Packet Search
+                </p>
+            </div>
+
+            {% set active_page = "search" %}
+            {% include "_navigation.html" %}
+
+        </div>
+
+        <!-- Arama formu -->
+        <div class="search-panel">
+
+            <h2>Packet Filters</h2>
+
+            <form id="packet-search-form">
+
+                <div class="search-grid">
+
+                    <!-- Kaynak IP -->
+                    <div class="form-group">
+
+                        <label for="source-ip">
+                            Source IP
+                        </label>
+
+                        <input
+                            id="source-ip"
+                            name="source_ip"
+                            type="text"
+                            placeholder="Example: 192.168.1.9"
+                        >
+
+                    </div>
+
+                    <!-- Hedef IP -->
+                    <div class="form-group">
+
+                        <label for="destination-ip">
+                            Destination IP
+                        </label>
+
+                        <input
+                            id="destination-ip"
+                            name="destination_ip"
+                            type="text"
+                            placeholder="Example: 8.8.8.8"
+                        >
+
+                    </div>
+
+                    <!-- Protokol -->
+                    <div class="form-group">
+
+                        <label for="protocol">
+                            Protocol
+                        </label>
+
+                        <select
+                            id="protocol"
+                            name="protocol"
+                        >
+                            <option value="">
+                                All Protocols
+                            </option>
+
+                            <option value="TCP">
+                                TCP
+                            </option>
+
+                            <option value="UDP">
+                                UDP
+                            </option>
+
+                            <option value="ICMP">
+                                ICMP
+                            </option>
+
+                            <option value="OTHER">
+                                OTHER
+                            </option>
+                        </select>
+
+                    </div>
+
+                    <!-- Port -->
+                    <div class="form-group">
+
+                        <label for="port">
+                            Source or Destination Port
+                        </label>
+
+                        <input
+                            id="port"
+                            name="port"
+                            type="number"
+                            min="1"
+                            max="65535"
+                            placeholder="Example: 443"
+                        >
+
+                    </div>
+
+                    <!-- Başlangıç zamanı -->
+                    <div class="form-group">
+
+                        <label for="start-time">
+                            Start Time
+                        </label>
+
+                        <input
+                            id="start-time"
+                            name="start_time"
+                            type="datetime-local"
+                        >
+
+                    </div>
+
+                    <!-- Bitiş zamanı -->
+                    <div class="form-group">
+
+                        <label for="end-time">
+                            End Time
+                        </label>
+
+                        <input
+                            id="end-time"
+                            name="end_time"
+                            type="datetime-local"
+                        >
+
+                    </div>
+
+                    <!-- Sonuç sınırı -->
+                    <div class="form-group">
+
+                        <label for="limit">
+                            Maximum Results
+                        </label>
+
+                        <select
+                            id="limit"
+                            name="limit"
+                        >
+                            <option value="50">
+                                50 Packets
+                            </option>
+
+                            <option
+                                value="100"
+                                selected
+                            >
+                                100 Packets
+                            </option>
+
+                            <option value="250">
+                                250 Packets
+                            </option>
+
+                            <option value="500">
+                                500 Packets
+                            </option>
+                        </select>
+
+                    </div>
+
+                </div>
+
+                <!-- Form düğmeleri -->
+                <div class="form-actions">
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Search Packets
+                    </button>
+
+                    <button
+                        type="button"
+                        class="secondary-button"
+                        id="clear-search"
+                    >
+                        Clear Filters
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+        <!-- Arama durumu -->
+        <div
+            id="search-result-status"
+            class="search-result-status"
+        >
+            Loading packets...
+        </div>
+
+        <!-- Arama özeti -->
+        <div class="cards">
+
+            <div class="card">
+                <h3>Matched Packets</h3>
+
+                <p id="search-total">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>TCP Packets</h3>
+
+                <p id="search-tcp">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>UDP Packets</h3>
+
+                <p id="search-udp">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>ICMP Packets</h3>
+
+                <p id="search-icmp">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Transferred Data</h3>
+
+                <p id="search-bytes">
+                    0 B
+                </p>
+            </div>
+
+        </div>
+
+        <!-- Arama sonuçları -->
+        <div class="top-sources-box">
+
+            <h2>Search Results</h2>
+
+            <p class="section-description">
+                Packets matching the selected filters
+            </p>
+
+            <div class="table-wrapper">
+
+                <table class="stats-table">
+
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Source IP</th>
+                            <th>Source Port</th>
+                            <th>Destination IP</th>
+                            <th>Destination Port</th>
+                            <th>Protocol</th>
+                            <th>Length</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="search-results-body">
+
+                        <tr>
+                            <td colspan="7">
+                                Loading saved packets...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        /*
+         * Yeni tablo hücresi oluşturur.
+         */
+        function createCell(value) {
+
+            const cell = document.createElement("td");
+
+            cell.textContent = value;
+
+            return cell;
+        }
+
+
+        /*
+         * Byte değerini okunabilir hâle getirir.
+         */
+        function formatBytes(byteValue) {
+
+            const bytes = Number(byteValue) || 0;
+
+            if (bytes === 0) {
+                return "0 B";
+            }
+
+            if (bytes < 1024) {
+                return bytes + " B";
+            }
+
+            if (bytes < 1024 * 1024) {
+
+                return (
+                    bytes / 1024
+                ).toFixed(2) + " KB";
+            }
+
+            if (bytes < 1024 * 1024 * 1024) {
+
+                return (
+                    bytes / (1024 * 1024)
+                ).toFixed(2) + " MB";
+            }
+
+            return (
+                bytes / (1024 * 1024 * 1024)
+            ).toFixed(2) + " GB";
+        }
+
+
+        /*
+         * Arama özet kartlarını günceller.
+         */
+        function updateSearchSummary(summary) {
+
+            document.getElementById(
+                "search-total"
+            ).textContent = summary.total_packets || 0;
+
+            document.getElementById(
+                "search-tcp"
+            ).textContent = summary.tcp_packets || 0;
+
+            document.getElementById(
+                "search-udp"
+            ).textContent = summary.udp_packets || 0;
+
+            document.getElementById(
+                "search-icmp"
+            ).textContent = summary.icmp_packets || 0;
+
+            document.getElementById(
+                "search-bytes"
+            ).textContent = formatBytes(
+                summary.total_bytes
+            );
+        }
+
+
+        /*
+         * Arama sonuçları tablosunu günceller.
+         */
+        function updateSearchResults(packets) {
+
+            const tableBody = document.getElementById(
+                "search-results-body"
+            );
+
+            tableBody.replaceChildren();
+
+            if (!packets || packets.length === 0) {
+
+                const row = document.createElement("tr");
+
+                const cell = createCell(
+                    "No packets matched the selected filters."
+                );
+
+                cell.colSpan = 7;
+
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+
+                return;
+            }
+
+            packets.forEach((packet) => {
+
+                const row = document.createElement("tr");
+
+                row.appendChild(
+                    createCell(packet.captured_at)
+                );
+
+                row.appendChild(
+                    createCell(packet.source_ip)
+                );
+
+                row.appendChild(
+                    createCell(
+                        packet.source_port ?? "-"
+                    )
+                );
+
+                row.appendChild(
+                    createCell(packet.destination_ip)
+                );
+
+                row.appendChild(
+                    createCell(
+                        packet.destination_port ?? "-"
+                    )
+                );
+
+                row.appendChild(
+                    createCell(packet.protocol)
+                );
+
+                row.appendChild(
+                    createCell(packet.packet_length)
+                );
+
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        /*
+         * Formdaki değerleri API parametrelerine dönüştürür.
+         */
+        function createSearchParameters() {
+
+            const form = document.getElementById(
+                "packet-search-form"
+            );
+
+            const formData = new FormData(form);
+            const parameters = new URLSearchParams();
+
+            for (
+                const [key, value]
+                of formData.entries()
+            ) {
+                const cleanValue = String(value).trim();
+
+                if (cleanValue !== "") {
+                    parameters.append(
+                        key,
+                        cleanValue
+                    );
+                }
+            }
+
+            return parameters;
+        }
+
+
+        /*
+         * API'den filtrelenmiş paketleri getirir.
+         */
+        async function loadSearchResults() {
+
+            const status = document.getElementById(
+                "search-result-status"
+            );
+
+            status.textContent =
+                "Searching saved packets...";
+
+            const parameters = createSearchParameters();
+
+            try {
+                const response = await fetch(
+                    "/api/packets/search?" +
+                    parameters.toString()
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Packet search request failed."
+                    );
+                }
+
+                const data = await response.json();
+
+                updateSearchSummary(
+                    data.summary
+                );
+
+                updateSearchResults(
+                    data.packets
+                );
+
+                status.textContent =
+                    data.summary.total_packets +
+                    " matching packets found. " +
+                    data.packets.length +
+                    " packets displayed.";
+
+            } catch (error) {
+
+                status.textContent =
+                    "Packet search could not be completed.";
+
+                console.error(error);
+            }
+        }
+
+
+        /*
+         * Arama formu gönderildiğinde çalışır.
+         */
+        document.getElementById(
+            "packet-search-form"
+        ).addEventListener("submit", (event) => {
+
+            event.preventDefault();
+
+            loadSearchResults();
+        });
+
+
+        /*
+         * Filtreleri temizler.
+         */
+        document.getElementById(
+            "clear-search"
+        ).addEventListener("click", () => {
+
+            document.getElementById(
+                "packet-search-form"
+            ).reset();
+
+            loadSearchResults();
+        });
+
+
+        /*
+         * Sayfa ilk açıldığında son paketleri getirir.
+         */
+        loadSearchResults();
+
+    </script>
+
+</body>
+
+</html>

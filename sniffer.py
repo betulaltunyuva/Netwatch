@@ -1,173 +1,673 @@
 from collections import Counter, deque
 from datetime import datetime
+from threading import Lock
+from time import monotonic
+
+from database import save_alerts, save_packets
+from detector import threat_detector
+from device_manager import is_local_ip, register_device
+from logger import get_logger
 
 
-def get_sample_summary():
-    return {
-        "last_updated": "2026-03-26 14:35:12",
-        "total_packets": 128,
-        "tcp_packets": 74,
-        "udp_packets": 38,
-        "icmp_packets": 16,
-        "alerts": [
-            "High TCP traffic detected from 192.168.1.10",
-            "Multiple UDP packets observed on port 53",
-            "ICMP activity is within normal range",
-        ],
-        "top_sources": [
-            {"ip": "192.168.1.10", "packets": 42},
-            {"ip": "192.168.1.15", "packets": 31},
-            {"ip": "192.168.1.22", "packets": 24},
-            {"ip": "192.168.1.8", "packets": 18},
-            {"ip": "192.168.1.100", "packets": 13},
-        ],
-        "top_ports": [
-            {"port": 80, "packets": 35},
-            {"port": 443, "packets": 29},
-            {"port": 53, "packets": 21},
-            {"port": 22, "packets": 12},
-            {"port": 8080, "packets": 9},
-        ],
-        "recent_packets": [
-            {
-                "time": "14:32:01",
-                "source": "192.168.1.10",
-                "destination": "192.168.1.1",
-                "protocol": "TCP",
-                "length": 60,
-            },
-            {
-                "time": "14:32:03",
-                "source": "192.168.1.15",
-                "destination": "8.8.8.8",
-                "protocol": "UDP",
-                "length": 74,
-            },
-            {
-                "time": "14:32:05",
-                "source": "192.168.1.22",
-                "destination": "192.168.1.1",
-                "protocol": "ICMP",
-                "length": 98,
-            },
-            {
-                "time": "14:32:08",
-                "source": "192.168.1.8",
-                "destination": "142.250.185.14",
-                "protocol": "TCP",
-                "length": 52,
-            },
-            {
-                "time": "14:32:11",
-                "source": "192.168.1.100",
-                "destination": "192.168.1.1",
-                "protocol": "UDP",
-                "length": 67,
-            },
-        ],
-    }
+logger = get_logger(__name__)
 
 
-def get_live_summary(packet_count=50):
+try:
+    from scapy.all import (
+        AsyncSniffer,
+        Ether,
+        ICMP,
+        IP,
+        TCP,
+        UDP
+    )
+
+    SCAPY_AVAILABLE = True
+    SCAPY_IMPORT_ERROR = None
+
+except Exception as error:
+    SCAPY_AVAILABLE = False
+    SCAPY_IMPORT_ERROR = str(error)
+
+
+class NetworkMonitor:
     """
-    Capture live packets with Scapy and build dashboard summary data.
+    Ağ paketlerini arka planda yakalar.
+
+    Paketleri analiz eder, veritabanına kaydeder,
+    cihazları takip eder ve PCAP dışa aktarımı için
+    ham paketleri bellekte tutar.
     """
-    try:
-        from scapy.all import ICMP, IP, TCP, UDP, sniff
-    except ImportError:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return {
-            "total_packets": 0,
-            "tcp_packets": 0,
-            "udp_packets": 0,
-            "icmp_packets": 0,
-            "alerts": ["Scapy is not installed. Live capture is unavailable."],
-            "top_sources": [],
-            "top_ports": [],
-            "recent_packets": [],
-            "last_updated": now,
-        }
 
-    captured_packets = sniff(count=packet_count, store=True)
+    DEVICE_UPDATE_INTERVAL = 10
+    RAW_PACKET_BUFFER_SIZE = 5000
 
-    source_counter = Counter()
-    port_counter = Counter()
-    recent_buffer = deque(maxlen=10)
+    # Paketler veritabanına tek tek değil,
+    # toplu olarak kaydedilir.
+    DATABASE_BATCH_SIZE = 100
+    DATABASE_FLUSH_INTERVAL = 1
 
-    tcp_packets = 0
-    udp_packets = 0
-    icmp_packets = 0
-    udp_53_detected = False
-    total_ip_packets = 0
+    def __init__(self):
+        self.lock = Lock()
 
-    for packet in captured_packets:
+        self.sniffer = None
+        self.running = False
+        self.sample_mode = False
+
+        self.capture_error = None
+        self.database_error = None
+        self.detector_error = None
+        self.device_error = None
+
+        self.total_packets = 0
+        self.tcp_packets = 0
+        self.udp_packets = 0
+        self.icmp_packets = 0
+
+        self.source_counter = Counter()
+        self.port_counter = Counter()
+
+        self.recent_packets = deque(
+            maxlen=10
+        )
+
+        self.security_alerts = deque(
+            maxlen=10
+        )
+
+        self.raw_packets = deque(
+            maxlen=self.RAW_PACKET_BUFFER_SIZE
+        )
+
+        self.device_last_updates = {}
+
+        # Veritabanına kaydedilmeyi bekleyen veriler.
+        self.pending_packets = []
+        self.pending_alerts = []
+
+        self.last_database_flush = monotonic()
+        self.last_updated = datetime.now()
+
+    def start(self):
+        """Paket yakalamayı arka planda başlatır."""
+
+        if self.running:
+            return True
+
+        if not SCAPY_AVAILABLE:
+            self.activate_sample_mode(
+                "Scapy could not be loaded. "
+                "Live capture is unavailable. "
+                f"Details: {SCAPY_IMPORT_ERROR or 'unknown error'}"
+            )
+
+            return False
+
+        try:
+            self.sniffer = AsyncSniffer(
+                prn=self.process_packet,
+                store=False
+            )
+
+            self.sniffer.start()
+
+            self.running = True
+            self.sample_mode = False
+            self.capture_error = None
+
+            logger.info(
+                "Live packet capture started."
+            )
+
+            return True
+
+        except Exception as error:
+            self.running = False
+
+            self.activate_sample_mode(
+                "Packet capture could not be started: "
+                f"{error}"
+            )
+
+            logger.exception(
+                "Packet capture could not be started"
+            )
+
+            return False
+
+    def activate_sample_mode(self, reason):
+        """
+        Canlı paket yakalama çalışmadığında
+        güvenli örnek verileri gösterir.
+        """
+
+        sample_packets = []
+
+        for index in range(48):
+            protocol = (
+                "TCP"
+                if index < 6
+                else "UDP"
+            )
+
+            source_ip = (
+                f"192.168.1.{(index % 5) + 2}"
+            )
+
+            destination_ip = (
+                "8.8.8.8"
+                if protocol == "UDP"
+                else "93.184.216.34"
+            )
+
+            destination_port = (
+                53
+                if protocol == "UDP"
+                else 443
+            )
+
+            sample_packets.append(
+                {
+                    "time": "--:--:--",
+                    "source": source_ip,
+                    "destination": destination_ip,
+                    "protocol": protocol,
+                    "length": 60 + (index % 8) * 12,
+                    "destination_port": destination_port,
+                }
+            )
+
+        with self.lock:
+            self.running = False
+            self.sample_mode = True
+
+            self.total_packets = len(
+                sample_packets
+            )
+
+            self.tcp_packets = 6
+            self.udp_packets = 42
+            self.icmp_packets = 0
+
+            self.source_counter = Counter(
+                packet["source"]
+                for packet in sample_packets
+            )
+
+            self.port_counter = Counter(
+                packet["destination_port"]
+                for packet in sample_packets
+            )
+
+            self.recent_packets.clear()
+
+            for packet in sample_packets[-10:]:
+                self.recent_packets.append(
+                    {
+                        "time": packet["time"],
+                        "source": packet["source"],
+                        "destination": packet["destination"],
+                        "protocol": packet["protocol"],
+                        "length": packet["length"],
+                    }
+                )
+
+            self.last_updated = datetime.now()
+
+        self.capture_error = (
+            f"{reason} Sample data is displayed."
+        )
+
+        logger.warning(
+            self.capture_error
+        )
+
+    def stop(self):
+        """Paket yakalamayı durdurur."""
+
+        if (
+            self.sniffer is not None
+            and self.running
+        ):
+            try:
+                self.sniffer.stop()
+
+            except Exception:
+                logger.exception(
+                    "Packet capture could not be stopped correctly"
+                )
+
+        self.running = False
+
+        # Program kapanırken bekleyen kayıtları kaydeder.
+        self.flush_database(
+            force=True
+        )
+
+    def track_device(
+        self,
+        source_ip,
+        source_mac,
+        seen_at
+    ):
+        """Yerel ağdaki kaynak cihazı kaydeder."""
+
+        if not is_local_ip(source_ip):
+            return
+
+        current_time = monotonic()
+
+        last_update = self.device_last_updates.get(
+            source_ip,
+            0
+        )
+
+        passed_time = (
+            current_time - last_update
+        )
+
+        if passed_time < self.DEVICE_UPDATE_INTERVAL:
+            return
+
+        try:
+            device_registered = register_device(
+                ip_value=source_ip,
+                mac_address=source_mac,
+                seen_at=seen_at
+            )
+
+            if device_registered:
+                self.device_last_updates[source_ip] = (
+                    current_time
+                )
+
+            self.device_error = None
+
+        except Exception as error:
+            self.device_error = str(error)
+
+            logger.exception(
+                "Device tracking failed"
+            )
+
+    def process_packet(self, packet):
+        """Yakalanan her ağ paketi için çalışır."""
+
         if not packet.haslayer(IP):
-            continue
+            return
 
-        total_ip_packets += 1
+        captured_at = datetime.now()
+
+        captured_at_text = captured_at.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
         ip_layer = packet[IP]
 
         protocol = "OTHER"
+        source_port = None
         destination_port = None
+        source_mac = None
+        tcp_flags = ""
+
+        if packet.haslayer(Ether):
+            source_mac = str(
+                packet[Ether].src
+            )
 
         if packet.haslayer(TCP):
-            tcp_packets += 1
             protocol = "TCP"
-            destination_port = int(packet[TCP].dport)
+
+            source_port = int(
+                packet[TCP].sport
+            )
+
+            destination_port = int(
+                packet[TCP].dport
+            )
+
+            tcp_flags = str(
+                packet[TCP].flags
+            )
+
         elif packet.haslayer(UDP):
-            udp_packets += 1
             protocol = "UDP"
-            destination_port = int(packet[UDP].dport)
-            if destination_port == 53:
-                udp_53_detected = True
+
+            source_port = int(
+                packet[UDP].sport
+            )
+
+            destination_port = int(
+                packet[UDP].dport
+            )
+
         elif packet.haslayer(ICMP):
-            icmp_packets += 1
             protocol = "ICMP"
 
-        source_counter[ip_layer.src] += 1
-        if destination_port is not None:
-            port_counter[destination_port] += 1
+        packet_record = {
+            "captured_at": captured_at_text,
+            "source_ip": ip_layer.src,
+            "destination_ip": ip_layer.dst,
+            "protocol": protocol,
+            "source_port": source_port,
+            "destination_port": destination_port,
+            "packet_length": len(packet),
+        }
 
-        recent_buffer.append(
-            {
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "source": ip_layer.src,
-                "destination": ip_layer.dst,
-                "protocol": protocol,
-                "length": len(packet),
-            }
+        recent_packet = {
+            "time": captured_at.strftime(
+                "%H:%M:%S"
+            ),
+            "source": ip_layer.src,
+            "destination": ip_layer.dst,
+            "protocol": protocol,
+            "length": len(packet),
+        }
+
+        self.track_device(
+            source_ip=ip_layer.src,
+            source_mac=source_mac,
+            seen_at=captured_at_text
         )
 
-    top_sources = [
-        {"ip": ip, "packets": count}
-        for ip, count in source_counter.most_common(5)
-    ]
-    top_ports = [
-        {"port": port, "packets": count}
-        for port, count in port_counter.most_common(5)
-    ]
+        try:
+            detected_alerts = (
+                threat_detector.analyze_packet(
+                    source_ip=ip_layer.src,
+                    protocol=protocol,
+                    destination_port=destination_port,
+                    tcp_flags=tcp_flags
+                )
+            )
 
-    alerts = []
-    if total_ip_packets > 0 and tcp_packets / total_ip_packets >= 0.6:
-        alerts.append("High TCP traffic detected on the monitored interface.")
+            self.detector_error = None
 
-    if udp_53_detected:
-        alerts.append("Multiple UDP packets observed on port 53.")
+        except Exception as error:
+            detected_alerts = []
+            self.detector_error = str(error)
 
-    if icmp_packets == 0:
-        alerts.append("No ICMP activity observed in the current capture window.")
-    else:
-        alerts.append("ICMP activity is within normal range.")
+            logger.exception(
+                "Packet threat analysis failed"
+            )
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return {
-        "total_packets": total_ip_packets,
-        "tcp_packets": tcp_packets,
-        "udp_packets": udp_packets,
-        "icmp_packets": icmp_packets,
-        "alerts": alerts,
-        "top_sources": top_sources,
-        "top_ports": top_ports,
-        "recent_packets": list(recent_buffer),
-        "last_updated": now,
-    }
+        with self.lock:
+            self.total_packets += 1
+
+            if protocol == "TCP":
+                self.tcp_packets += 1
+
+            elif protocol == "UDP":
+                self.udp_packets += 1
+
+            elif protocol == "ICMP":
+                self.icmp_packets += 1
+
+            self.source_counter[
+                ip_layer.src
+            ] += 1
+
+            if destination_port is not None:
+                self.port_counter[
+                    destination_port
+                ] += 1
+
+            self.recent_packets.append(
+                recent_packet
+            )
+
+            for alert in detected_alerts:
+                self.security_alerts.appendleft(
+                    alert
+                )
+
+            self.pending_packets.append(
+                packet_record
+            )
+
+            self.pending_alerts.extend(
+                detected_alerts
+            )
+
+            self.raw_packets.append(
+                packet.copy()
+            )
+
+            self.last_updated = captured_at
+
+        self.flush_database()
+
+    def flush_database(self, force=False):
+        """
+        Bekleyen paketleri ve uyarıları
+        SQLite veritabanına toplu kaydeder.
+        """
+
+        current_time = monotonic()
+
+        with self.lock:
+            should_flush = (
+                force
+                or (
+                    len(self.pending_packets)
+                    >= self.DATABASE_BATCH_SIZE
+                )
+                or (
+                    self.pending_packets
+                    and (
+                        current_time
+                        - self.last_database_flush
+                        >= self.DATABASE_FLUSH_INTERVAL
+                    )
+                )
+            )
+
+            if not should_flush:
+                return 0
+
+            packets_to_save = self.pending_packets
+            alerts_to_save = self.pending_alerts
+
+            self.pending_packets = []
+            self.pending_alerts = []
+
+            self.last_database_flush = (
+                current_time
+            )
+
+        try:
+            save_packets(
+                packets_to_save
+            )
+
+            if alerts_to_save:
+                save_alerts(
+                    alerts_to_save
+                )
+
+            self.database_error = None
+
+            return len(
+                packets_to_save
+            )
+
+        except Exception as error:
+            self.database_error = str(error)
+
+            logger.exception(
+                "Database batch write failed"
+            )
+
+            # Geçici bir veritabanı hatasında
+            # kayıtların kaybolmasını engeller.
+            with self.lock:
+                self.pending_packets = (
+                    packets_to_save
+                    + self.pending_packets
+                )
+
+                self.pending_alerts = (
+                    alerts_to_save
+                    + self.pending_alerts
+                )
+
+            return 0
+
+    def get_capture_packets(self):
+        """
+        PCAP dışa aktarımı için ham
+        paketlerin kopyasını döndürür.
+        """
+
+        with self.lock:
+            return [
+                packet.copy()
+                for packet in self.raw_packets
+            ]
+
+    def get_capture_packet_count(self):
+        """
+        PCAP dosyasına aktarılabilecek
+        paket sayısını döndürür.
+        """
+
+        with self.lock:
+            return len(
+                self.raw_packets
+            )
+
+    def get_summary(self):
+        """Canlı dashboard verilerini oluşturur."""
+
+        with self.lock:
+            total_packets = (
+                self.total_packets
+            )
+
+            tcp_packets = (
+                self.tcp_packets
+            )
+
+            udp_packets = (
+                self.udp_packets
+            )
+
+            icmp_packets = (
+                self.icmp_packets
+            )
+
+            top_sources = [
+                {
+                    "ip": ip,
+                    "packets": count
+                }
+                for ip, count
+                in self.source_counter.most_common(5)
+            ]
+
+            top_ports = [
+                {
+                    "port": port,
+                    "packets": count
+                }
+                for port, count
+                in self.port_counter.most_common(5)
+            ]
+
+            recent_packets = list(
+                self.recent_packets
+            )
+
+            security_alerts = list(
+                self.security_alerts
+            )
+
+            last_updated = (
+                self.last_updated.strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+            )
+
+        alert_messages = []
+
+        if self.capture_error:
+            alert_messages.append(
+                self.capture_error
+            )
+
+        if self.database_error:
+            alert_messages.append(
+                "Database error: "
+                f"{self.database_error}"
+            )
+
+        if self.detector_error:
+            alert_messages.append(
+                "Detector error: "
+                f"{self.detector_error}"
+            )
+
+        if self.device_error:
+            alert_messages.append(
+                "Device tracking error: "
+                f"{self.device_error}"
+            )
+
+        for alert in security_alerts:
+            alert_messages.append(
+                f"[{alert['severity']}] "
+                f"{alert['message']}"
+            )
+
+        if (
+            total_packets == 0
+            and not self.capture_error
+        ):
+            alert_messages.append(
+                "Waiting for network packets."
+            )
+
+        elif (
+            total_packets > 0
+            and not alert_messages
+        ):
+            alert_messages.append(
+                "No suspicious activity detected."
+            )
+
+        if self.sample_mode:
+            data_mode = "sample"
+
+        elif self.running:
+            data_mode = "live"
+
+        else:
+            data_mode = "unavailable"
+
+        return {
+            "total_packets": total_packets,
+            "tcp_packets": tcp_packets,
+            "udp_packets": udp_packets,
+            "icmp_packets": icmp_packets,
+            "alerts": alert_messages,
+            "top_sources": top_sources,
+            "top_ports": top_ports,
+            "recent_packets": recent_packets,
+            "last_updated": last_updated,
+            "data_mode": data_mode,
+        }
+
+
+# Uygulama boyunca kullanılacak tek ağ izleyicisi.
+monitor = NetworkMonitor()
+
+
+def get_live_summary(packet_count=50):
+    """Eski kodlarla uyumluluk sağlar."""
+
+    if (
+        not monitor.running
+        and not monitor.sample_mode
+    ):
+        monitor.start()
+
+    return monitor.get_summary()

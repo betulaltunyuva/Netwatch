@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>NetWatch - Data Export</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Sayfa başlığı -->
+        <div class="page-header">
+
+            <div>
+                <h1>NetWatch</h1>
+
+                <p class="subtitle">
+                    CSV and PCAP Data Export
+                </p>
+            </div>
+
+            {% set active_page = "exports" %}
+            {% include "_navigation.html" %}
+
+        </div>
+
+        <!-- Güncelleme bilgisi -->
+        <div class="export-toolbar">
+
+            <p>
+                Download captured network information
+                for analysis and reporting.
+            </p>
+
+            <div
+                id="export-updated-at"
+                class="history-status"
+            >
+                Loading export information...
+            </div>
+
+        </div>
+
+        <!-- Kayıt sayıları -->
+        <div class="cards">
+
+            <div class="card">
+                <h3>Saved Packets</h3>
+
+                <p id="export-saved-packets">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Saved Alerts</h3>
+
+                <p id="export-saved-alerts">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>PCAP Packets</h3>
+
+                <p id="export-pcap-packets">
+                    0
+                </p>
+            </div>
+
+        </div>
+
+        <!-- Dışa aktarma seçenekleri -->
+        <div class="export-grid">
+
+            <!-- Paket CSV -->
+            <div class="export-card">
+
+                <div class="export-icon">
+                    CSV
+                </div>
+
+                <h2>Packet Records</h2>
+
+                <p>
+                    Download packet metadata stored in the
+                    SQLite database as a CSV file.
+                </p>
+
+                <ul>
+                    <li>Capture time</li>
+                    <li>Source and destination IP</li>
+                    <li>Source and destination port</li>
+                    <li>Protocol and packet length</li>
+                </ul>
+
+                <form
+                    action="{{ url_for('export_packets_csv') }}"
+                    method="get"
+                    class="export-form"
+                >
+
+                    <label for="packet-export-limit">
+                        Maximum records
+                    </label>
+
+                    <select
+                        id="packet-export-limit"
+                        name="limit"
+                    >
+                        <option value="1000">
+                            Latest 1,000 packets
+                        </option>
+
+                        <option value="10000">
+                            Latest 10,000 packets
+                        </option>
+
+                        <option
+                            value="50000"
+                            selected
+                        >
+                            Latest 50,000 packets
+                        </option>
+                    </select>
+
+                    <button
+                        type="submit"
+                        class="download-button"
+                    >
+                        Download Packet CSV
+                    </button>
+
+                </form>
+
+            </div>
+
+            <!-- Uyarı CSV -->
+            <div class="export-card">
+
+                <div class="export-icon export-icon-alert">
+                    CSV
+                </div>
+
+                <h2>Security Alerts</h2>
+
+                <p>
+                    Download detected security alerts as
+                    a CSV file for reporting.
+                </p>
+
+                <ul>
+                    <li>Alert time</li>
+                    <li>Alert type</li>
+                    <li>Severity</li>
+                    <li>Source IP and message</li>
+                </ul>
+
+                <form
+                    action="{{ url_for('export_alerts_csv') }}"
+                    method="get"
+                    class="export-form"
+                >
+
+                    <label for="alert-export-limit">
+                        Maximum records
+                    </label>
+
+                    <select
+                        id="alert-export-limit"
+                        name="limit"
+                    >
+                        <option value="100">
+                            Latest 100 alerts
+                        </option>
+
+                        <option value="1000">
+                            Latest 1,000 alerts
+                        </option>
+
+                        <option
+                            value="10000"
+                            selected
+                        >
+                            Latest 10,000 alerts
+                        </option>
+                    </select>
+
+                    <button
+                        type="submit"
+                        class="download-button"
+                    >
+                        Download Alert CSV
+                    </button>
+
+                </form>
+
+            </div>
+
+            <!-- PCAP -->
+            <div class="export-card">
+
+                <div class="export-icon export-icon-pcap">
+                    PCAP
+                </div>
+
+                <h2>Raw Packet Capture</h2>
+
+                <p>
+                    Download recent raw packets in PCAP
+                    format and open them with Wireshark.
+                </p>
+
+                <ul>
+                    <li>Contains raw packet information</li>
+                    <li>Compatible with Wireshark</li>
+                    <li>Maximum 5,000 recent packets</li>
+                    <li>Reset when NetWatch restarts</li>
+                </ul>
+
+                <div class="export-form">
+
+                    <p
+                        id="pcap-availability"
+                        class="pcap-availability"
+                    >
+                        Checking captured packets...
+                    </p>
+
+                    <a
+                        id="pcap-download-button"
+                        href="{{ url_for('export_capture_pcap') }}"
+                        class="download-button"
+                    >
+                        Download PCAP
+                    </a>
+
+                </div>
+
+            </div>
+                    <!-- Veritabanı temizleme -->
+            <div class="export-card">
+
+                <div class="export-icon export-icon-cleanup">
+                    DB
+                </div>
+
+                <h2>Database Cleanup</h2>
+
+                <p>
+                    Delete packet and alert records older than
+                    the selected retention period.
+                </p>
+
+                <ul>
+                    <li>Prevents unlimited database growth</li>
+                    <li>Keeps recent records available</li>
+                    <li>Does not delete known devices</li>
+                    <li>Requires confirmation</li>
+                </ul>
+
+                <div class="export-form">
+
+                    <label for="retention-days">
+                        Keep recent records
+                    </label>
+
+                    <select id="retention-days">
+                        <option value="7">Last 7 days</option>
+
+                        <option value="30" selected>
+                            Last 30 days
+                        </option>
+
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last 365 days</option>
+                    </select>
+
+                    <p
+                        id="cleanup-status"
+                        class="pcap-availability"
+                    >
+                        No cleanup has been run in this session.
+                    </p>
+
+                    <button
+                        type="button"
+                        id="cleanup-button"
+                        class="download-button cleanup-button"
+                    >
+                        Delete Older Records
+                    </button>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Bilgilendirme -->
+        <div class="device-information-box">
+
+            <h2>Export Information</h2>
+
+            <p>
+                CSV exports use records stored in the SQLite
+                database. PCAP export contains only raw packets
+                captured since the current NetWatch session
+                started and is limited to the most recent
+                5,000 packets.
+            </p>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        /*
+         * Sayıları binlik ayraçla gösterir.
+         */
+        function formatNumber(value) {
+
+            return new Intl.NumberFormat().format(
+                Number(value) || 0
+            );
+        }
+
+
+        /*
+         * Dışa aktarma bilgilerini API'den getirir.
+         */
+        async function loadExportInformation() {
+
+            const updatedAt = document.getElementById(
+                "export-updated-at"
+            );
+
+            try {
+                const response = await fetch(
+                    "/api/exports/info"
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Export information request failed."
+                    );
+                }
+
+                const data = await response.json();
+
+                document.getElementById(
+                    "export-saved-packets"
+                ).textContent = formatNumber(
+                    data.saved_packets
+                );
+
+                document.getElementById(
+                    "export-saved-alerts"
+                ).textContent = formatNumber(
+                    data.saved_alerts
+                );
+
+                document.getElementById(
+                    "export-pcap-packets"
+                ).textContent = formatNumber(
+                    data.pcap_packets
+                );
+
+                updatePcapAvailability(
+                    data.pcap_packets
+                );
+
+                const now = new Date();
+
+                updatedAt.textContent =
+                    "Updated: " +
+                    now.toLocaleTimeString();
+
+            } catch (error) {
+
+                updatedAt.textContent =
+                    "Export information could not be loaded.";
+
+                console.error(error);
+            }
+        }
+
+
+        /*
+         * PCAP indirme düğmesinin durumunu günceller.
+         */
+        function updatePcapAvailability(packetCount) {
+
+            const message = document.getElementById(
+                "pcap-availability"
+            );
+
+            const button = document.getElementById(
+                "pcap-download-button"
+            );
+
+            const count = Number(packetCount) || 0;
+
+            if (count > 0) {
+
+                message.textContent =
+                    formatNumber(count) +
+                    " packets are ready for PCAP export.";
+
+                button.classList.remove(
+                    "is-disabled"
+                );
+
+                button.removeAttribute(
+                    "aria-disabled"
+                );
+
+            } else {
+
+                message.textContent =
+                    "No raw packets are available yet.";
+
+                button.classList.add(
+                    "is-disabled"
+                );
+
+                button.setAttribute(
+                    "aria-disabled",
+                    "true"
+                );
+            }
+        }
+
+
+        /*
+         * Paket yoksa PCAP bağlantısını engeller.
+         */
+        document.getElementById(
+            "pcap-download-button"
+        ).addEventListener("click", (event) => {
+
+            if (
+                event.currentTarget.classList.contains(
+                    "is-disabled"
+                )
+            ) {
+                event.preventDefault();
+            }
+        });
+
+                document.getElementById(
+            "cleanup-button"
+        ).addEventListener("click", async () => {
+
+            const select = document.getElementById(
+                "retention-days"
+            );
+
+            const status = document.getElementById(
+                "cleanup-status"
+            );
+
+            const button = document.getElementById(
+                "cleanup-button"
+            );
+
+            const retentionDays =
+                Number(select.value) || 30;
+
+            const confirmed = window.confirm(
+                "Delete packet and alert records older than " +
+                retentionDays +
+                " days?"
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            button.disabled = true;
+            status.textContent =
+                "Cleaning old records...";
+
+            try {
+                const response = await fetch(
+                    "/api/data/cleanup",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: JSON.stringify({
+                            retention_days:
+                                retentionDays
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Cleanup request failed."
+                    );
+                }
+
+                const data = await response.json();
+
+                status.textContent =
+                    formatNumber(
+                        data.deleted_packets
+                    ) +
+                    " packets and " +
+                    formatNumber(
+                        data.deleted_alerts
+                    ) +
+                    " alerts deleted.";
+
+                await loadExportInformation();
+
+            } catch (error) {
+                status.textContent =
+                    "Old records could not be deleted.";
+
+                console.error(error);
+
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        /*
+         * Sayfa açıldığında bilgileri getirir.
+         */
+        loadExportInformation();
+
+
+        /*
+         * Bilgileri her 5 saniyede yeniler.
+         */
+        setInterval(() => {
+
+            loadExportInformation();
+
+        }, 5000);
+
+    </script>
+
+</body>
+
+</html>

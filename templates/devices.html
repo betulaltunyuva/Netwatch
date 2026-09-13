@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>NetWatch - Network Devices</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- Sayfa başlığı -->
+        <div class="page-header">
+
+            <div>
+                <h1>NetWatch</h1>
+
+                <p class="subtitle">
+                    Local Network Devices
+                </p>
+            </div>
+
+            {% set active_page = "devices" %}
+            {% include "_navigation.html" %}
+        </div>
+
+        <!-- Güncellenme durumu -->
+        <div class="device-toolbar">
+
+            <p class="device-description">
+                Devices detected from local network traffic
+            </p>
+
+            <div
+                id="devices-updated-at"
+                class="history-status"
+            >
+                Loading devices...
+            </div>
+
+        </div>
+
+        <!-- Cihaz özet kartları -->
+        <div class="cards">
+
+            <div class="card">
+                <h3>Total Devices</h3>
+
+                <p id="total-devices">
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Online Devices</h3>
+
+                <p
+                    id="online-devices"
+                    class="online-number"
+                >
+                    0
+                </p>
+            </div>
+
+            <div class="card">
+                <h3>Offline Devices</h3>
+
+                <p
+                    id="offline-devices"
+                    class="offline-number"
+                >
+                    0
+                </p>
+            </div>
+
+        </div>
+
+        <!-- Cihaz listesi -->
+        <div class="top-sources-box">
+
+            <h2>Detected Devices</h2>
+
+            <p class="section-description">
+                A device is considered online if it was seen
+                during the last two minutes.
+            </p>
+
+            <div class="table-wrapper">
+
+                <table class="stats-table">
+
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>MAC Address</th>
+                            <th>Status</th>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                            <th>Packet Count</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="devices-table-body">
+
+                        <tr>
+                            <td colspan="6">
+                                Loading network devices...
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- Bilgilendirme alanı -->
+        <div class="device-information-box">
+
+            <h2>How Device Detection Works</h2>
+
+            <p>
+                NetWatch records private IPv4 addresses such as
+                192.168.x.x when they appear in captured network
+                traffic. Public internet addresses are not added
+                to this device list.
+            </p>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        /*
+         * Yeni tablo hücresi oluşturur.
+         */
+        function createCell(value) {
+
+            const cell = document.createElement("td");
+
+            cell.textContent = value;
+
+            return cell;
+        }
+
+
+        /*
+         * Cihaz özet kartlarını günceller.
+         */
+        function updateDeviceSummary(summary) {
+
+            document.getElementById(
+                "total-devices"
+            ).textContent =
+                summary.total_devices || 0;
+
+            document.getElementById(
+                "online-devices"
+            ).textContent =
+                summary.online_devices || 0;
+
+            document.getElementById(
+                "offline-devices"
+            ).textContent =
+                summary.offline_devices || 0;
+        }
+
+
+        /*
+         * Cihaz tablosunu günceller.
+         */
+        function updateDevicesTable(devices) {
+
+            const tableBody = document.getElementById(
+                "devices-table-body"
+            );
+
+            tableBody.replaceChildren();
+
+            if (!devices || devices.length === 0) {
+
+                const row = document.createElement("tr");
+
+                const cell = createCell(
+                    "No local network devices detected yet."
+                );
+
+                cell.colSpan = 6;
+
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+
+                return;
+            }
+
+            devices.forEach((device) => {
+
+                const row = document.createElement("tr");
+
+                // IP adresi.
+                row.appendChild(
+                    createCell(device.ip_address)
+                );
+
+                // MAC adresi.
+                row.appendChild(
+                    createCell(
+                        device.mac_address ||
+                        "Unavailable"
+                    )
+                );
+
+                // Cihaz durumu.
+                const statusCell = createCell(
+                    device.status
+                );
+
+                statusCell.classList.add(
+                    "device-status",
+                    "device-status-" +
+                    device.status.toLowerCase()
+                );
+
+                row.appendChild(statusCell);
+
+                // İlk görülme zamanı.
+                row.appendChild(
+                    createCell(device.first_seen)
+                );
+
+                // Son görülme zamanı.
+                row.appendChild(
+                    createCell(device.last_seen)
+                );
+
+                // Toplam paket sayısı.
+                row.appendChild(
+                    createCell(device.packet_count)
+                );
+
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        /*
+         * API üzerinden cihaz listesini getirir.
+         */
+        async function loadDevices() {
+
+            const updatedAt = document.getElementById(
+                "devices-updated-at"
+            );
+
+            try {
+                const response = await fetch(
+                    "/api/devices"
+                );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Device request failed."
+                    );
+                }
+
+                const data = await response.json();
+
+                updateDeviceSummary(
+                    data.summary
+                );
+
+                updateDevicesTable(
+                    data.devices
+                );
+
+                updatedAt.textContent =
+                    "Updated: " +
+                    data.updated_at;
+
+            } catch (error) {
+
+                updatedAt.textContent =
+                    "Devices could not be loaded.";
+
+                console.error(error);
+            }
+        }
+
+
+        /*
+         * Sayfa açıldığında cihazları getirir.
+         */
+        loadDevices();
+
+
+        /*
+         * Cihaz listesini her 5 saniyede yeniler.
+         */
+        setInterval(() => {
+
+            loadDevices();
+
+        }, 5000);
+
+    </script>
+
+</body>
+
+</html>
